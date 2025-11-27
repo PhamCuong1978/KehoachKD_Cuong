@@ -325,7 +325,7 @@ const BusinessPlanModule: React.FC = () => {
               loanFirstTransferUSD: 10000,
               loanFirstTransferInterestDays: 30,
               postClearanceStorageDays: 20,
-              postClearanceStorageRatePerKgDay: 150,
+              postClearanceStorageRatePerKgDay: 12, // Updated default to 12
               importVatRate: 0,
               purchasingServiceFeeInMillionsPerCont: 5,
               buyerDeliveryFee: 0,

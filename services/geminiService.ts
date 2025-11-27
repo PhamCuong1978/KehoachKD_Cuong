@@ -2,11 +2,21 @@
 import { GoogleGenAI } from "@google/genai";
 import type { MeetingDetails } from '../types';
 
-// Remove top-level instantiation to prevent crash on load if process.env is missing
-// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const getAiClient = () => {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Try to get the API Key safely from various possible sources
+    // @ts-ignore
+    const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || 
+                   // @ts-ignore
+                   (typeof window !== 'undefined' && window.process?.env?.API_KEY) ||
+                   // @ts-ignore
+                   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) ||
+                   '';
+                   
+    if (!apiKey) {
+        console.warn("API Key is missing. AI features will fail.");
+    }
+    
+    return new GoogleGenAI({ apiKey });
 };
 
 // Helper to convert File -> base64

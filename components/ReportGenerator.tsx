@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { PlanItem } from '../types';
 import { generateHtmlReport } from '../utils/reportGenerator';
@@ -7,12 +8,14 @@ import { SparklesIcon } from './icons/SparklesIcon';
 import { GoogleGenAI } from "@google/genai";
 import { formatCurrency } from '../utils/formatters';
 import { PencilIcon } from './icons/PencilIcon';
+import { SaveIcon } from './icons/SaveIcon';
 
 interface ReportGeneratorProps {
   items: PlanItem[];
   exchangeRateImport: number;
   exchangeRateTax: number;
   onOpenAiAssistant: () => void;
+  onSavePlan?: () => void; // New prop for saving
 }
 
 const calculateTotalsForAI = (items: PlanItem[]) => {
@@ -42,7 +45,7 @@ const calculateTotalsForAI = (items: PlanItem[]) => {
 };
 
 
-export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchangeRateImport, exchangeRateTax, onOpenAiAssistant }) => {
+export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchangeRateImport, exchangeRateTax, onOpenAiAssistant, onSavePlan }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
@@ -229,7 +232,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchang
               Chọn một trong các tùy chọn dưới đây để xem trước hoặc tải về.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             <button
                 onClick={handlePreview}
                 disabled={items.length === 0 || isGenerating}
@@ -237,6 +240,24 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchang
             >
                 <EyeIcon className="h-5 w-5 mr-2" />
                 Xem trước
+            </button>
+            {onSavePlan && (
+              <button
+                onClick={onSavePlan}
+                disabled={items.length === 0 || isGenerating}
+                className="w-full flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                <SaveIcon className="h-5 w-5 mr-2" />
+                Lưu Kế hoạch
+              </button>
+            )}
+            <button
+                onClick={handleDownload}
+                disabled={items.length === 0 || isGenerating}
+                className="w-full flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+                <DocumentDownloadIcon className="h-5 w-5 mr-2" />
+                Tải Về
             </button>
              <button
                 onClick={onOpenAiAssistant}
@@ -246,18 +267,10 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchang
                 <PencilIcon className="h-5 w-5 mr-2" />
                 Yêu cầu chỉnh sửa
             </button>
-            <button
-                onClick={handleDownload}
-                disabled={items.length === 0 || isGenerating}
-                className="w-full flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-                <DocumentDownloadIcon className="h-5 w-5 mr-2" />
-                Tải Về
-            </button>
-            <button
+             <button
                 onClick={handleGenerateWithAI}
                 disabled={items.length === 0 || isGenerating}
-                className="w-full flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="w-full sm:col-span-2 lg:col-span-4 flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:cursor-not-allowed mt-2 sm:mt-0"
             >
                 <SparklesIcon className="h-5 w-5 mr-2" />
                 {isGenerating ? 'Đang xử lý...' : 'Tải về & Phân tích (AI)'}

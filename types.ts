@@ -121,3 +121,27 @@ export interface MeetingDetails {
     chair: string;
     topic: string;
 }
+
+export interface PlanSettings {
+  exchangeRateImport: number;
+  exchangeRateTax: number;
+  salesSalaryRate: number;
+  totalMonthlyIndirectSalary: number;
+  workingDaysPerMonth: number;
+  totalMonthlyRent: number;
+  totalMonthlyElectricity: number;
+  totalMonthlyWater: number;
+  totalMonthlyStationery: number;
+  totalMonthlyDepreciation: number;
+  totalMonthlyExternalServices: number;
+  totalMonthlyOtherCashExpenses: number;
+  totalMonthlyFinancialCost: number;
+}
+
+export interface SavedPlan {
+  id: string;
+  name: string;
+  createdAt: string;
+  items: PlanItem[];
+  settings: PlanSettings;
+}

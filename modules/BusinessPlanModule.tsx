@@ -4,7 +4,7 @@ import { SettingsPanel } from '../components/SettingsPanel';
 import { ProductSelection } from '../components/ProductSelection';
 import { PlanTable } from '../components/PlanTable';
 import { PRODUCTS } from '../data/products';
-import type { PlanItem, Product, AddProductDetails } from '../types';
+import type { PlanItem, Product, AddProductDetails, SavedPlan, PlanSettings } from '../types';
 import { recalculateEntirePlan } from '../utils/calculators';
 import { PlusCircleIcon } from '../components/icons/PlusCircleIcon';
 import { ReportGenerator } from '../components/ReportGenerator';
@@ -13,6 +13,7 @@ import { DocumentDownloadIcon } from '../components/icons/DocumentDownloadIcon';
 import { UploadIcon } from '../components/icons/UploadIcon';
 import { AiAssistantModal } from '../components/AiAssistantModal';
 import { AddProductModal } from '../components/AddProductModal';
+import { SavePlanModal } from '../components/SavePlanModal';
 
 const BusinessPlanModule: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(() => {
@@ -34,6 +35,10 @@ const BusinessPlanModule: React.FC = () => {
       console.error("Could not save products to localStorage", error);
     }
   }, [products]);
+
+  // State to track the ID of the currently loaded plan (if any)
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+  const [currentPlanName, setCurrentPlanName] = useState<string>('');
 
   const [uncalculatedPlanItems, setUncalculatedPlanItems] = useState<PlanItem[]>([]);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
@@ -57,7 +62,165 @@ const BusinessPlanModule: React.FC = () => {
   const [selectedProductCode, setSelectedProductCode] = useState<string>(products.length > 0 ? products[0].code : '');
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
+  // Effect to load plan if pendingLoadPlan exists in localStorage (triggered from SavedPlansModule)
+  useEffect(() => {
+    const pendingLoadPlan = localStorage.getItem('pendingLoadPlan');
+    if (pendingLoadPlan) {
+      try {
+        const plan: SavedPlan = JSON.parse(pendingLoadPlan);
+        
+        // Restore ID and Name to track edits
+        setCurrentPlanId(plan.id);
+        setCurrentPlanName(plan.name);
+
+        // Restore Items
+        setUncalculatedPlanItems(plan.items);
+        
+        // Restore Settings
+        setExchangeRateImport(plan.settings.exchangeRateImport);
+        setExchangeRateTax(plan.settings.exchangeRateTax);
+        setSalesSalaryRate(plan.settings.salesSalaryRate);
+        setTotalMonthlyIndirectSalary(plan.settings.totalMonthlyIndirectSalary);
+        setWorkingDaysPerMonth(plan.settings.workingDaysPerMonth);
+        setTotalMonthlyRent(plan.settings.totalMonthlyRent);
+        setTotalMonthlyElectricity(plan.settings.totalMonthlyElectricity);
+        setTotalMonthlyWater(plan.settings.totalMonthlyWater);
+        setTotalMonthlyStationery(plan.settings.totalMonthlyStationery);
+        setTotalMonthlyDepreciation(plan.settings.totalMonthlyDepreciation);
+        setTotalMonthlyExternalServices(plan.settings.totalMonthlyExternalServices);
+        setTotalMonthlyOtherCashExpenses(plan.settings.totalMonthlyOtherCashExpenses);
+        setTotalMonthlyFinancialCost(plan.settings.totalMonthlyFinancialCost);
+        
+        // Clear the pending load flag
+        localStorage.removeItem('pendingLoadPlan');
+        
+        // Scroll to top to show the loaded plan
+        window.scrollTo(0, 0);
+        
+      } catch (e) {
+        console.error("Failed to load plan", e);
+      }
+    }
+  }, []); // Run once on mount
+
+  const handleOpenSaveModal = () => {
+    if (planItems.length === 0) {
+      alert("Vui lòng thêm sản phẩm vào kế hoạch trước khi lưu.");
+      return;
+    }
+    setIsSaveModalOpen(true);
+  };
+
+  const handleConfirmSave = (planName: string) => {
+    const currentSettings: PlanSettings = {
+      exchangeRateImport,
+      exchangeRateTax,
+      salesSalaryRate,
+      totalMonthlyIndirectSalary,
+      workingDaysPerMonth,
+      totalMonthlyRent,
+      totalMonthlyElectricity,
+      totalMonthlyWater,
+      totalMonthlyStationery,
+      totalMonthlyDepreciation,
+      totalMonthlyExternalServices,
+      totalMonthlyOtherCashExpenses,
+      totalMonthlyFinancialCost
+    };
+
+    try {
+      const existingPlansStr = localStorage.getItem('savedPlans');
+      const existingPlans: SavedPlan[] = existingPlansStr ? JSON.parse(existingPlansStr) : [];
+      
+      // Check if a plan with this name already exists
+      const duplicateNameIndex = existingPlans.findIndex(p => p.name.trim().toLowerCase() === planName.trim().toLowerCase());
+      
+      let updatedPlans = [...existingPlans];
+      let newId = currentPlanId || Date.now().toString();
+      let shouldSave = true;
+
+      if (duplicateNameIndex !== -1) {
+          // A plan with this name exists.
+          // Check if it's the SAME plan we are editing (by ID) or a different one.
+          const isSamePlan = existingPlans[duplicateNameIndex].id === currentPlanId;
+          
+          if (isSamePlan) {
+              // We are just updating the existing plan
+              updatedPlans[duplicateNameIndex] = {
+                  id: newId,
+                  name: planName,
+                  createdAt: new Date().toISOString(), // Update timestamp
+                  items: uncalculatedPlanItems,
+                  settings: currentSettings
+              };
+          } else {
+              // Name conflict with a different plan
+              if (confirm(`Kế hoạch có tên "${planName}" đã tồn tại. Bạn có muốn ghi đè lên nó không?`)) {
+                   updatedPlans[duplicateNameIndex] = {
+                      id: existingPlans[duplicateNameIndex].id, // Keep the ID of the one being overwritten
+                      name: planName,
+                      createdAt: new Date().toISOString(),
+                      items: uncalculatedPlanItems,
+                      settings: currentSettings
+                  };
+                  newId = existingPlans[duplicateNameIndex].id;
+              } else {
+                  shouldSave = false;
+              }
+          }
+      } else {
+          // No name conflict.
+          if (currentPlanId) {
+             // We are renaming an existing plan
+             const existingIdIndex = existingPlans.findIndex(p => p.id === currentPlanId);
+             if (existingIdIndex !== -1) {
+                 // Update the existing plan with new name and data
+                 updatedPlans[existingIdIndex] = {
+                     id: currentPlanId,
+                     name: planName,
+                     createdAt: new Date().toISOString(),
+                     items: uncalculatedPlanItems,
+                     settings: currentSettings
+                 };
+             } else {
+                 // ID not found (deleted?), create new
+                  newId = Date.now().toString();
+                  updatedPlans.unshift({
+                      id: newId,
+                      name: planName,
+                      createdAt: new Date().toISOString(),
+                      items: uncalculatedPlanItems,
+                      settings: currentSettings
+                  });
+             }
+          } else {
+              // No current ID, completely new plan
+              newId = Date.now().toString();
+              updatedPlans.unshift({
+                  id: newId,
+                  name: planName,
+                  createdAt: new Date().toISOString(),
+                  items: uncalculatedPlanItems,
+                  settings: currentSettings
+              });
+          }
+      }
+
+      if (shouldSave) {
+        localStorage.setItem('savedPlans', JSON.stringify(updatedPlans));
+        setCurrentPlanId(newId);
+        setCurrentPlanName(planName);
+        setIsSaveModalOpen(false); // Close modal
+        alert("Đã lưu kế hoạch thành công!");
+      }
+      
+    } catch (e) {
+      console.error("Error saving plan", e);
+      alert("Có lỗi xảy ra khi lưu kế hoạch. Bộ nhớ trình duyệt có thể đã đầy.");
+    }
+  };
 
   const handleExport = () => {
     const dataStr = JSON.stringify(products, null, 2);
@@ -214,6 +377,27 @@ const BusinessPlanModule: React.FC = () => {
     <>
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col gap-6 mb-6">
+          {currentPlanId && (
+              <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 px-4 py-3 rounded relative flex items-center justify-between" role="alert">
+                  <div>
+                      <strong className="font-bold">Đang chỉnh sửa: </strong>
+                      <span className="block sm:inline">{currentPlanName}</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                        if(confirm('Bạn có muốn đóng kế hoạch này và tạo mới không? Dữ liệu chưa lưu sẽ bị mất.')) {
+                            setCurrentPlanId(null);
+                            setCurrentPlanName('');
+                            setUncalculatedPlanItems([]);
+                        }
+                    }}
+                    className="text-xs bg-white border border-indigo-300 hover:bg-indigo-100 text-indigo-700 font-semibold py-1 px-2 rounded"
+                  >
+                      Đóng / Tạo mới
+                  </button>
+              </div>
+          )}
+
           <SettingsPanel
             exchangeRateImport={exchangeRateImport}
             setExchangeRateImport={setExchangeRateImport}
@@ -274,6 +458,7 @@ const BusinessPlanModule: React.FC = () => {
             exchangeRateImport={exchangeRateImport}
             exchangeRateTax={exchangeRateTax}
             onOpenAiAssistant={() => setIsAiModalOpen(true)}
+            onSavePlan={handleOpenSaveModal}
           />
         </div>
 
@@ -341,6 +526,12 @@ const BusinessPlanModule: React.FC = () => {
         isOpen={isAddProductModalOpen}
         onClose={() => setIsAddProductModalOpen(false)}
         onSave={addNewProduct}
+      />
+      <SavePlanModal 
+        isOpen={isSaveModalOpen}
+        onClose={() => setIsSaveModalOpen(false)}
+        onSave={handleConfirmSave}
+        defaultName={currentPlanName || `Kế hoạch ${new Date().toLocaleDateString('vi-VN')}`}
       />
     </>
   );

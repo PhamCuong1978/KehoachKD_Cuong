@@ -7,6 +7,7 @@ import { ArchiveIcon } from './icons/ArchiveIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';
+import { BookmarkIcon } from './icons/BookmarkIcon';
 
 interface SidebarProps {
   activeModule: ModuleType;
@@ -16,6 +17,7 @@ interface SidebarProps {
 
 const navItems = [
   { id: 'businessPlan', name: 'Kế hoạch Kinh doanh', icon: BriefcaseIcon },
+  { id: 'savedPlans', name: 'Kế hoạch đã lưu', icon: BookmarkIcon, isChild: true },
   { id: 'cashFlow', name: 'Thu - Chi tiền', icon: CashIcon },
   { id: 'inventory', name: 'Nhập xuất hàng', icon: ArchiveIcon },
   { id: 'salesTeam', name: 'Đội KD & Marketing', icon: UsersIcon },
@@ -34,7 +36,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule,
           <button
             key={item.id}
             onClick={() => setActiveModule(item.id as ModuleType)}
-            className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors duration-200 ${
+            className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors duration-200 
+            ${item.isChild ? 'ml-4 w-[calc(100%-1rem)]' : ''}
+            ${
               activeModule === item.id
                 ? 'bg-indigo-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'

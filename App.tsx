@@ -7,11 +7,13 @@ import { InventoryModule } from './modules/InventoryModule';
 import { SalesTeamModule } from './modules/SalesTeamModule';
 import { Header } from './components/Header';
 import { MeetingMinutesModule } from './modules/MeetingMinutesModule';
+import { SavedPlansModule } from './modules/SavedPlansModule';
 
-export type ModuleType = 'businessPlan' | 'cashFlow' | 'inventory' | 'salesTeam' | 'meetingMinutes';
+export type ModuleType = 'businessPlan' | 'savedPlans' | 'cashFlow' | 'inventory' | 'salesTeam' | 'meetingMinutes';
 
 const moduleTitles: { [key in ModuleType]: string } = {
   businessPlan: 'Kế hoạch Kinh doanh',
+  savedPlans: 'Kế hoạch đã lưu',
   cashFlow: 'Thu - Chi tiền',
   inventory: 'Nhập xuất hàng',
   salesTeam: 'Đội KD & Marketing',
@@ -29,10 +31,16 @@ const App: React.FC = () => {
     return true; // Fallback for non-browser environments
   });
 
+  const handleNavigate = (module: ModuleType) => {
+    setActiveModule(module);
+  };
+
   const renderActiveModule = () => {
     switch (activeModule) {
       case 'businessPlan':
         return <BusinessPlanModule />;
+      case 'savedPlans':
+        return <SavedPlansModule onNavigate={handleNavigate} />;
       case 'cashFlow':
         return <CashFlowModule />;
       case 'inventory':

@@ -46,7 +46,7 @@ const calculateTotals = (items: PlanItem[]) => {
 
 // Helper to calculate detailed costs for the new Cost Summary Table
 const calculateDetailedCosts = (items: PlanItem[]) => {
-    return items.reduce((acc, item) => {
+    const costs = items.reduce((acc, item) => {
         // 1. Logistics & Clearance (Included in COGS)
         acc.customsFee += item.userInput.costs.customsFee || 0;
         acc.quarantineFee += item.userInput.costs.quarantineFee || 0;
@@ -90,6 +90,21 @@ const calculateDetailedCosts = (items: PlanItem[]) => {
         // 4
         financialValuationCost: 0
     });
+
+    // Calculate weighted average storage days
+    let totalWeight = 0;
+    let totalWeightedDays = 0;
+    
+    items.forEach(item => {
+        const qty = item.userInput.quantityInKg || 0;
+        const days = item.userInput.costs.postClearanceStorageDays || 0;
+        totalWeight += qty;
+        totalWeightedDays += (qty * days);
+    });
+    
+    const avgStorageDays = totalWeight > 0 ? Math.round(totalWeightedDays / totalWeight) : 0;
+
+    return { ...costs, avgStorageDays };
 };
 
 const createDetailRow = (label: string, value: string, isSubtle = false) => `
@@ -278,7 +293,7 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
                     ${createCostTableRow('1.4', 'Phí lưu kho bãi cảng', details.portStorageFee, netRevenue)}
                     ${createCostTableRow('1.5', 'Chi phí chung nhập kho', details.generalWarehouseCost, netRevenue)}
                     ${createCostTableRow('1.6', 'Lãi vay nhập hàng', details.importInterestCost, netRevenue)}
-                    ${createCostTableRow('1.7', 'Phí lưu kho sau TQ', details.postClearanceStorageCost, netRevenue)}
+                    ${createCostTableRow('1.7', 'Phí lưu kho sau TQ', details.postClearanceStorageCost, netRevenue, `(Lưu kho ~${details.avgStorageDays} ngày)`)}
                     ${createCostTableRow('1.8', 'DV mua hàng', details.purchasingServiceFee, netRevenue)}
                     ${createCostTableRow('1.9', 'Phí VC đến bên mua', details.buyerDeliveryFee, netRevenue)}
                     ${createCostTableRow('1.10', 'Chi phí khác', details.otherInternationalPurchaseCost, netRevenue)}

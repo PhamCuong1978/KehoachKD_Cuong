@@ -2,22 +2,44 @@
 import { GoogleGenAI } from "@google/genai";
 import type { MeetingDetails } from '../types';
 
-const getAiClient = () => {
-    // Try to get the API Key safely from various possible sources
+export const getGeminiApiKey = (): string => {
+    // Helper function to safely get the API Key from various environments
+    // Priority: 
+    // 1. import.meta.env.VITE_API_KEY (Standard Vite way, best for Vercel)
+    // 2. process.env.API_KEY (Standard Node/CRA/Webpack replace)
+    // 3. window.process.env.API_KEY (Fallback for manual polyfills)
+    
     // @ts-ignore
-    const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || 
-                   // @ts-ignore
-                   (typeof window !== 'undefined' && window.process?.env?.API_KEY) ||
-                   // @ts-ignore
-                   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) ||
-                   '';
-                   
-    if (!apiKey) {
-        console.warn("API Key is missing. AI features will fail.");
+    if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) {
+        // @ts-ignore
+        return import.meta.env.VITE_API_KEY;
     }
     
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env?.API_KEY) {
+        // @ts-ignore
+        return process.env.API_KEY;
+    }
+
+    // @ts-ignore
+    if (typeof window !== 'undefined' && window.process?.env?.API_KEY) {
+        // @ts-ignore
+        return window.process.env.API_KEY;
+    }
+    
+    return '';
+};
+
+export const getGeminiClient = () => {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+        console.warn("API Key is missing. AI features will fail. Please set VITE_API_KEY or API_KEY in your environment variables.");
+    }
     return new GoogleGenAI({ apiKey });
 };
+
+// Kept for backward compatibility if used internally, but delegates to new helper
+const getAiClient = getGeminiClient;
 
 // Helper to convert File -> base64
 const fileToGenerativePart = async (file: File) => {
@@ -38,7 +60,7 @@ const fileToGenerativePart = async (file: File) => {
 };
 
 export const transcribeAudio = async (file: File, model: string): Promise<string> => {
-    const ai = getAiClient();
+    const ai = getGeminiClient();
     const audioPart = await fileToGenerativePart(file);
     const response = await ai.models.generateContent({
         model: model,
@@ -53,7 +75,7 @@ export const transcribeAudio = async (file: File, model: string): Promise<string
 };
 
 export const generateMeetingMinutes = async (transcription: string, details: MeetingDetails, model: string): Promise<string> => {
-    const ai = getAiClient();
+    const ai = getGeminiClient();
     const prompt = `
         Based on the following meeting transcription and details, please generate a professional meeting minutes document in HTML format.
 
@@ -122,7 +144,7 @@ export const regenerateMeetingMinutes = async (
     editRequest: string,
     model: string
 ): Promise<string> => {
-    const ai = getAiClient();
+    const ai = getGeminiClient();
     const prompt = `
         You are an AI assistant tasked with editing a set of meeting minutes. The minutes are in Vietnamese.
         You will be given the original meeting transcription, the meeting details, the previous HTML version of the minutes, and a user's request for edits.

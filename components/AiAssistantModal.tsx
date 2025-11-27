@@ -7,6 +7,7 @@ import { XIcon } from './icons/XIcon';
 import { SendIcon } from './icons/SendIcon';
 import { MicrophoneIcon } from './icons/MicrophoneIcon';
 import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
+import { getGeminiClient } from '../services/geminiService';
 
 interface AiAssistantModalProps {
   isOpen: boolean;
@@ -300,7 +301,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
 
     try {
       if (!chatRef.current) {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = getGeminiClient();
         const tools: FunctionDeclaration[] = [
           {
             name: 'update_product_property',

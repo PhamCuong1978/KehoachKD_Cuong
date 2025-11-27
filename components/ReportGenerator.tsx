@@ -5,7 +5,7 @@ import { generateHtmlReport } from '../utils/reportGenerator';
 import { DocumentDownloadIcon } from './icons/DocumentDownloadIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
-import { GoogleGenAI } from "@google/genai";
+import { getGeminiClient } from "../services/geminiService";
 import { formatCurrency } from '../utils/formatters';
 import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
 import { SaveIcon } from './icons/SaveIcon';
@@ -178,7 +178,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchang
         setProgress(50);
         setStatusText('Đang gửi yêu cầu đến AI...');
 
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = getGeminiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
@@ -210,7 +210,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchang
     } catch (error) {
         console.error("Error generating AI analysis:", error);
         setProgress(100);
-        setStatusText('Đã có lỗi xảy ra! Vui lòng thử lại.');
+        setStatusText('Đã có lỗi xảy ra! (Vui lòng kiểm tra API Key)');
         setTimeout(() => {
           setShowProgress(false);
           setIsGenerating(false);

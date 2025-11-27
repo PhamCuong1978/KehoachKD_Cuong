@@ -7,6 +7,7 @@ import { XIcon } from './icons/XIcon';
 import { SendIcon } from './icons/SendIcon';
 import { MicrophoneIcon } from './icons/MicrophoneIcon';
 import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
+import { getGeminiClient } from '../services/geminiService';
 
 interface AiAssistantWidgetProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
   useEffect(() => {
     if (!chatRef.current) {
         setMessages([{ id: Date.now(), sender: 'ai', text: 'Em chào anh Cường! Anh muốn gì ở em???' }]);
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = getGeminiClient();
         const tools: FunctionDeclaration[] = [
           {
             name: 'update_product_property',

@@ -5,6 +5,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Business Plan Analyzer</title>
+    <script>
+      // Polyfill for process.env to prevent "process is not defined" error on Vercel/Browser
+      if (typeof process === "undefined") {
+        window.process = { env: {} };
+      }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">
 {

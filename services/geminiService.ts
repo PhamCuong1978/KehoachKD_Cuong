@@ -1,7 +1,13 @@
+
 import { GoogleGenAI } from "@google/genai";
 import type { MeetingDetails } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Remove top-level instantiation to prevent crash on load if process.env is missing
+// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const getAiClient = () => {
+    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
 
 // Helper to convert File -> base64
 const fileToGenerativePart = async (file: File) => {
@@ -22,6 +28,7 @@ const fileToGenerativePart = async (file: File) => {
 };
 
 export const transcribeAudio = async (file: File, model: string): Promise<string> => {
+    const ai = getAiClient();
     const audioPart = await fileToGenerativePart(file);
     const response = await ai.models.generateContent({
         model: model,
@@ -36,6 +43,7 @@ export const transcribeAudio = async (file: File, model: string): Promise<string
 };
 
 export const generateMeetingMinutes = async (transcription: string, details: MeetingDetails, model: string): Promise<string> => {
+    const ai = getAiClient();
     const prompt = `
         Based on the following meeting transcription and details, please generate a professional meeting minutes document in HTML format.
 
@@ -104,6 +112,7 @@ export const regenerateMeetingMinutes = async (
     editRequest: string,
     model: string
 ): Promise<string> => {
+    const ai = getAiClient();
     const prompt = `
         You are an AI assistant tasked with editing a set of meeting minutes. The minutes are in Vietnamese.
         You will be given the original meeting transcription, the meeting details, the previous HTML version of the minutes, and a user's request for edits.

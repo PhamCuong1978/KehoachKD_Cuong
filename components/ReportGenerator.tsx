@@ -7,7 +7,7 @@ import { EyeIcon } from './icons/EyeIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { GoogleGenAI } from "@google/genai";
 import { formatCurrency } from '../utils/formatters';
-import { PencilIcon } from './icons/PencilIcon';
+import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
 import { SaveIcon } from './icons/SaveIcon';
 
 interface ReportGeneratorProps {
@@ -264,8 +264,8 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchang
                 disabled={items.length === 0 || isGenerating}
                 className="w-full flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-                <PencilIcon className="h-5 w-5 mr-2" />
-                Yêu cầu chỉnh sửa
+                <ChatBubbleIcon className="h-5 w-5 mr-2" />
+                AI của anh Cường
             </button>
              <button
                 onClick={handleGenerateWithAI}

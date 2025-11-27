@@ -6,6 +6,7 @@ import { UploadIcon } from '../components/icons/UploadIcon';
 import { DownloadIcon } from '../components/icons/DownloadIcon';
 import { EyeIcon } from '../components/icons/EyeIcon';
 import { CopyIcon } from '../components/icons/CopyIcon';
+import { PencilIcon } from '../components/icons/PencilIcon';
 import { InputGroup } from '../components/InputGroup';
 import type { SavedPlan } from '../types';
 import type { ModuleType } from '../App';
@@ -103,35 +104,65 @@ export const SavedPlansModule: React.FC<SavedPlansModuleProps> = ({ onNavigate }
         const text = e.target?.result;
         if (typeof text !== 'string') return;
         
-        const importedData = JSON.parse(text);
+        let importedData;
+        try {
+            importedData = JSON.parse(text);
+        } catch (err) {
+            alert('File không phải là định dạng JSON hợp lệ.');
+            return;
+        }
         
-        // Basic validation
-        if (importedData && importedData.id && importedData.items && importedData.settings) {
-            const existingIndex = savedPlans.findIndex(p => p.id === importedData.id);
-            let updatedPlans;
+        // Helper validation function
+        const isValidPlan = (data: any): boolean => {
+            return data && 
+                   typeof data.id === 'string' && 
+                   typeof data.name === 'string' && 
+                   Array.isArray(data.items) && 
+                   typeof data.settings === 'object';
+        };
+
+        if (isValidPlan(importedData)) {
+            const plan: SavedPlan = importedData;
+            
+            // Check if ID exists
+            const existingIndex = savedPlans.findIndex(p => p.id === plan.id);
+            
+            let newPlans = [...savedPlans];
+            
             if (existingIndex >= 0) {
-                if(confirm('Kế hoạch với ID này đã tồn tại. Bạn có muốn ghi đè không?')) {
-                     updatedPlans = [...savedPlans];
-                     updatedPlans[existingIndex] = importedData;
+                // Determine action for duplicate
+                const confirmOverwrite = confirm(
+                    `Kế hoạch "${plan.name}" (ID: ${plan.id}) đã tồn tại trong danh sách.\n\n` +
+                    `- Nhấn OK để GHI ĐÈ lên kế hoạch cũ.\n` +
+                    `- Nhấn Cancel để tạo bản sao mới (Imported).`
+                );
+                
+                if (confirmOverwrite) {
+                    newPlans[existingIndex] = plan;
                 } else {
-                    return; // Cancel import
+                    // Create copy with new ID
+                    const newId = Date.now().toString();
+                    plan.id = newId;
+                    plan.name = `${plan.name} (Imported)`;
+                    plan.createdAt = new Date().toISOString();
+                    newPlans.unshift(plan);
                 }
             } else {
-                updatedPlans = [importedData, ...savedPlans];
+                // New plan, add to top
+                newPlans.unshift(plan);
             }
             
-            if (updatedPlans) {
-                saveToLocalStorage(updatedPlans);
-                alert('Đã tải lên kế hoạch thành công!');
-            }
+            saveToLocalStorage(newPlans);
+            alert(`Đã tải lên kế hoạch "${plan.name}" thành công!`);
         } else {
-            alert('File không hợp lệ. Vui lòng chọn file kế hoạch đúng định dạng JSON.');
+            alert('Cấu trúc file không hợp lệ. Vui lòng đảm bảo file được xuất từ phần mềm này (có chứa ID, danh sách sản phẩm và cài đặt).');
         }
 
       } catch (error) {
-        alert('Lỗi khi đọc file.');
+        console.error("Upload error:", error);
+        alert('Đã xảy ra lỗi khi đọc file.');
       } finally {
-        event.target.value = '';
+        event.target.value = ''; // Reset input to allow re-uploading same file
       }
     };
     reader.readAsText(file);
@@ -232,6 +263,13 @@ export const SavedPlansModule: React.FC<SavedPlansModuleProps> = ({ onNavigate }
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div className="flex justify-end items-center space-x-2">
+                                    <button
+                                        onClick={() => handleLoadPlan(plan)}
+                                        className="p-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors"
+                                        title="Mở và chỉnh sửa"
+                                    >
+                                        <PencilIcon className="h-4 w-4" />
+                                    </button>
                                     <button
                                         onClick={() => handleDuplicate(plan)}
                                         className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"

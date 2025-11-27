@@ -46,6 +46,8 @@ export const PlanRow: React.FC<PlanRowProps> = (props) => {
     removeItem(item.id);
   }
 
+  const netProfitMargin = calculated.totalRevenue ? ((calculated.netProfit || 0) / calculated.totalRevenue) * 100 : 0;
+
   return (
     <>
       <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
@@ -79,10 +81,13 @@ export const PlanRow: React.FC<PlanRowProps> = (props) => {
         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 align-top">{formatCurrency(calculated.outputVAT)}</td>
         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 font-medium align-top">{formatCurrency(calculated.vatPayable)}</td>
         <td className="px-3 py-4 whitespace-nowrap text-sm text-red-700 font-bold align-top">{formatCurrency(calculated.totalTaxPayable)}</td>
+        <td className={`px-3 py-4 whitespace-nowrap text-sm font-bold align-top ${netProfitMargin < 0 ? 'text-red-600' : 'text-indigo-600'}`}>
+            {netProfitMargin.toFixed(2)}%
+        </td>
       </tr>
       {isExpanded && (
         <tr className="bg-gray-50">
-          <td colSpan={16} className="p-0">
+          <td colSpan={17} className="p-0">
              <PlanItemDetails {...props} />
           </td>
         </tr>

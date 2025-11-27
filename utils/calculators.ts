@@ -45,13 +45,28 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   const priceVNDPerTon = userInput.priceUSDPerTon * rates.importRate;
   const totalRevenueInclVAT = userInput.sellingPriceVNDPerKg * quantityInKg;
 
-  // New import interest cost calculation (1.6)
+  // New import interest cost calculation (1.6) - Updated Logic
   const dailyInterestRate = (costs.loanInterestRatePerYear / 100) / 365;
+  
+  // 1. Interest on First Transfer
   const loanFirstTransferAmountVND = costs.loanFirstTransferUSD * rates.importRate;
   const loanInterestCostFirstTransfer = loanFirstTransferAmountVND * dailyInterestRate * costs.loanFirstTransferInterestDays;
-  const loanSecondTransferAmountVND = importValueVND > loanFirstTransferAmountVND ? importValueVND - loanFirstTransferAmountVND : 0;
-  const loanInterestCostSecondTransfer = (loanFirstTransferAmountVND + loanSecondTransferAmountVND) * dailyInterestRate * costs.postClearanceStorageDays;
-  const importInterestCost = loanInterestCostFirstTransfer + loanInterestCostSecondTransfer;
+  
+  // 2. Interest on Second Transfer (Remaining Balance)
+  // Amount = Total Import Value - First Transfer Amount. If First Transfer > Total, then 0.
+  // Duration = Post Clearance Storage Days (1.7)
+  const loanSecondTransferAmountVND = Math.max(0, importValueVND - loanFirstTransferAmountVND);
+  const loanInterestCostSecondTransfer = loanSecondTransferAmountVND * dailyInterestRate * costs.postClearanceStorageDays;
+
+  // 3. Interest on VAT Payment
+  // Amount = Import VAT
+  // Duration = Post Clearance Storage Days (1.7)
+  // Only if VAT rate > 0
+  const vatLoanInterestCost = importVAT > 0 
+    ? importVAT * dailyInterestRate * costs.postClearanceStorageDays 
+    : 0;
+
+  const importInterestCost = loanInterestCostFirstTransfer + loanInterestCostSecondTransfer + vatLoanInterestCost;
 
   const generalWarehouseCost = quantityInKg * costs.generalWarehouseCostRatePerKg;
   const postClearanceStorageCost = quantityInKg * costs.postClearanceStorageDays * costs.postClearanceStorageRatePerKgDay;
@@ -84,6 +99,7 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
     loanInterestCostFirstTransfer,
     loanSecondTransferAmountVND,
     loanInterestCostSecondTransfer,
+    vatLoanInterestCost,
     postClearanceStorageCost,
     purchasingServiceFee,
     otherInternationalPurchaseCost,
@@ -138,7 +154,11 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
   const totalOperatingCost = totalSellingCost + totalGaCost;
   const totalPreTaxCost = (item.calculated.totalCOGS ?? 0) + totalOperatingCost + totalFinancialCost;
   const profitBeforeTax = (item.calculated.totalRevenue ?? 0) - totalPreTaxCost;
-  const corporateIncomeTax = profitBeforeTax > 0 ? profitBeforeTax * CORP_INCOME_TAX_RATE : 0;
+  
+  // CHANGED: Removed the check (profitBeforeTax > 0). 
+  // Now calculates tax even if profit is negative (representing a tax credit/shield in the context of the whole plan).
+  const corporateIncomeTax = profitBeforeTax * CORP_INCOME_TAX_RATE;
+  
   const netProfit = profitBeforeTax - corporateIncomeTax;
   const totalTaxPayable = corporateIncomeTax + (vatPayable ?? 0);
 

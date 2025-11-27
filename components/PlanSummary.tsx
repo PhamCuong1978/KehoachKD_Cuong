@@ -44,6 +44,8 @@ export const PlanSummary: React.FC<PlanSummaryProps> = ({ items }) => {
     }
   );
 
+  const totalNetProfitMargin = totals.totalRevenue ? (totals.netProfit / totals.totalRevenue) * 100 : 0;
+
   return (
     <tfoot className="bg-gray-100 font-bold">
       <tr>
@@ -62,6 +64,7 @@ export const PlanSummary: React.FC<PlanSummaryProps> = ({ items }) => {
         <td className="px-3 py-3 text-left text-sm text-gray-700">{formatCurrency(totals.outputVAT)}</td>
         <td className="px-3 py-3 text-left text-sm text-gray-700">{formatCurrency(totals.vatPayable)}</td>
         <td className="px-3 py-3 text-left text-sm text-red-800">{formatCurrency(totals.totalTaxPayable)}</td>
+        <td className={`px-3 py-3 text-left text-sm ${totalNetProfitMargin < 0 ? 'text-red-700' : 'text-indigo-700'}`}>{totalNetProfitMargin.toFixed(2)}%</td>
       </tr>
     </tfoot>
   );

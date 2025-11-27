@@ -8,7 +8,7 @@ import { SendIcon } from './icons/SendIcon';
 import { MicrophoneIcon } from './icons/MicrophoneIcon';
 import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
 
-interface AiAssistantModalProps {
+interface AiAssistantWidgetProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[]; // Master product list
@@ -56,7 +56,7 @@ const settingMap: { [key: string]: string } = {
   "chi_phi_tai_chinh": "setTotalMonthlyFinancialCost",
 };
 
-export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
+export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
   isOpen, onClose, products, planItems, updatePlanItem, removePlanItem, addProductToPlan, setters
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -65,26 +65,113 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   const [isListening, setIsListening] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<Chat | null>(null);
+  const widgetRef = useRef<HTMLDivElement>(null);
 
+  // Initialize chat only once
   useEffect(() => {
-    if (isOpen) {
-      chatRef.current = null; // Reset chat session when modal opens
-      setMessages([{ id: Date.now(), sender: 'ai', text: 'Em chào anh Cường! Anh muốn gì ở em???' }]);
-    }
-  }, [isOpen]);
+    if (!chatRef.current) {
+        setMessages([{ id: Date.now(), sender: 'ai', text: 'Em chào anh Cường! Anh muốn gì ở em???' }]);
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const tools: FunctionDeclaration[] = [
+          {
+            name: 'update_product_property',
+            description: 'Cập nhật một thuộc tính của MỘT sản phẩm cụ thể trong kế hoạch.',
+            parameters: {
+              type: Type.OBJECT, properties: {
+                product_name: { type: Type.STRING, description: 'Tên tiếng Việt của sản phẩm, bao gồm cả nhóm hàng. Ví dụ: "Thịt trâu - Thăn ngoại".' },
+                property_name: { type: Type.STRING, description: `Tên thuộc tính cần thay đổi. Giá trị hợp lệ: ${Object.keys(propertyMap).join(', ')}.` },
+                new_value: { type: Type.NUMBER, description: 'Giá trị số mới.' },
+              }, required: ['product_name', 'property_name', 'new_value'],
+            },
+          },
+          {
+            name: 'bulk_update_products',
+            description: 'Cập nhật hàng loạt một thuộc tính cho nhiều sản phẩm dựa trên một điều kiện lọc.',
+            parameters: {
+              type: Type.OBJECT, properties: {
+                filter_property: { type: Type.STRING, description: "Tiêu chí lọc sản phẩm. Dùng 'brand' để lọc theo thương hiệu, 'group' để lọc theo nhóm (ví dụ: 'Thịt trâu'), 'all' để áp dụng cho tất cả sản phẩm." },
+                filter_value: { type: Type.STRING, description: "Giá trị để lọc. Ví dụ: 'Alana' nếu filter_property là 'brand'." },
+                target_property: { type: Type.STRING, description: `Tên thuộc tính cần thay đổi. Giá trị hợp lệ: ${Object.keys(propertyMap).join(', ')}.` },
+                update_type: { type: Type.STRING, description: "Loại cập nhật: 'percentage_increase' (tăng phần trăm), 'percentage_decrease' (giảm phần trăm), 'absolute_increase' (tăng giá trị tuyệt đối), 'absolute_decrease' (giảm giá trị tuyệt đối), 'set_value' (đặt giá trị mới)." },
+                update_value: { type: Type.NUMBER, description: 'Giá trị cho việc cập nhật (ví dụ: 10 cho 10%, 5000 cho 5000 VND).' },
+              }, required: ['filter_property', 'target_property', 'update_type', 'update_value'],
+            },
+          },
+          {
+            name: 'add_product_to_plan',
+            description: 'Thêm một sản phẩm mới từ danh mục vào kế hoạch kinh doanh.',
+            parameters: {
+              type: Type.OBJECT, properties: {
+                product_name: { type: Type.STRING, description: 'Tên tiếng Việt chính xác của sản phẩm cần thêm, bao gồm cả nhóm hàng.' },
+                quantity_kg: { type: Type.NUMBER, description: 'Số lượng tính bằng kg.' },
+                price_usd_per_ton: { type: Type.NUMBER, description: 'Giá mua USD/tấn. Nếu không cung cấp, sẽ dùng giá mặc định.' },
+                selling_price_vnd_per_kg: { type: Type.NUMBER, description: 'Giá bán VND/kg. Nếu không cung cấp, sẽ dùng giá mặc định.' },
+              }, required: ['product_name', 'quantity_kg'],
+            },
+          },
+          {
+            name: 'update_general_setting',
+            description: 'Cập nhật một cài đặt chung của toàn bộ kế hoạch.',
+            parameters: {
+              type: Type.OBJECT, properties: {
+                setting_name: { type: Type.STRING, description: `Tên cài đặt cần thay đổi. Giá trị hợp lệ: ${Object.keys(settingMap).join(', ')}.` },
+                new_value: { type: Type.NUMBER, description: 'Giá trị số mới.' },
+              }, required: ['setting_name', 'new_value'],
+            },
+          },
+          {
+            name: 'remove_product_from_plan',
+            description: 'Xóa một sản phẩm khỏi kế hoạch kinh doanh.',
+            parameters: {
+              type: Type.OBJECT, properties: {
+                product_name: { type: Type.STRING, description: 'Tên tiếng Việt của sản phẩm cần xóa, bao gồm cả nhóm hàng.' },
+              }, required: ['product_name'],
+            },
+          }
+        ];
 
-  useEffect(() => {
-    // Reset the chat session if the underlying plan data changes,
-    // so the AI gets a fresh context on the next message.
-    if (chatRef.current) {
-        chatRef.current = null;
+        const systemInstruction = `You are "AI của anh Cường", a smart and helpful assistant for a business planning application. 
+- You act as a professional assistant to "Anh Cường".
+- The user is creating a business plan for importing and selling frozen food products in Vietnam.
+- The user will give instructions in Vietnamese. You MUST respond in Vietnamese.
+- Your primary goal is to help the user modify their business plan using the provided tools.
+- Maintain context of the conversation. Do not forget what was discussed previously.
+- If the user's request is ambiguous, ask for clarification.
+- Be concise, professional but friendly.`;
+
+        chatRef.current = ai.chats.create({
+          model: 'gemini-2.5-flash',
+          config: {
+            tools: [{ functionDeclarations: tools }],
+            systemInstruction: systemInstruction,
+          },
+        });
     }
-  }, [planItems]);
-  
+  }, []); // Run once on mount
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isOpen]);
   
+  // Click outside to close
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen && widgetRef.current && !widgetRef.current.contains(event.target as Node)) {
+        // Check if the click was on the toggle button (which is outside this component)
+        // We can check if the target has a specific ID or class if needed, 
+        // but typically the toggle button handler stops propagation.
+        // For now, let's just close it.
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+
   useEffect(() => {
     if (!recognition) return;
     recognition.onstart = () => setIsListening(true);
@@ -95,13 +182,6 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     };
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
-      if (event.error === 'no-speech') {
-          alert('Không nhận dạng được giọng nói. Vui lòng thử lại và nói rõ hơn gần micro.');
-      } else if (event.error === 'not-allowed') {
-          alert('Bạn đã từ chối quyền truy cập micro. Vui lòng cho phép truy cập micro trong cài đặt trình duyệt để sử dụng tính năng này.');
-      } else {
-          alert(`Đã xảy ra lỗi khi nhận dạng giọng nói: ${event.error}. Vui lòng thử lại.`);
-      }
       setIsListening(false);
     };
   }, []);
@@ -290,7 +370,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !chatRef.current) return;
 
     const userMessage: Message = { id: Date.now(), sender: 'user', text: input };
     setMessages(prev => [...prev, userMessage]);
@@ -299,99 +379,33 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     setIsLoading(true);
 
     try {
-      if (!chatRef.current) {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const tools: FunctionDeclaration[] = [
-          {
-            name: 'update_product_property',
-            description: 'Cập nhật một thuộc tính của MỘT sản phẩm cụ thể trong kế hoạch.',
-            parameters: {
-              type: Type.OBJECT, properties: {
-                product_name: { type: Type.STRING, description: 'Tên tiếng Việt của sản phẩm, bao gồm cả nhóm hàng. Ví dụ: "Thịt trâu - Thăn ngoại".' },
-                property_name: { type: Type.STRING, description: `Tên thuộc tính cần thay đổi. Giá trị hợp lệ: ${Object.keys(propertyMap).join(', ')}.` },
-                new_value: { type: Type.NUMBER, description: 'Giá trị số mới.' },
-              }, required: ['product_name', 'property_name', 'new_value'],
-            },
-          },
-          {
-            name: 'bulk_update_products',
-            description: 'Cập nhật hàng loạt một thuộc tính cho nhiều sản phẩm dựa trên một điều kiện lọc.',
-            parameters: {
-              type: Type.OBJECT, properties: {
-                filter_property: { type: Type.STRING, description: "Tiêu chí lọc sản phẩm. Dùng 'brand' để lọc theo thương hiệu, 'group' để lọc theo nhóm (ví dụ: 'Thịt trâu'), 'all' để áp dụng cho tất cả sản phẩm." },
-                filter_value: { type: Type.STRING, description: "Giá trị để lọc. Ví dụ: 'Alana' nếu filter_property là 'brand'." },
-                target_property: { type: Type.STRING, description: `Tên thuộc tính cần thay đổi. Giá trị hợp lệ: ${Object.keys(propertyMap).join(', ')}.` },
-                update_type: { type: Type.STRING, description: "Loại cập nhật: 'percentage_increase' (tăng phần trăm), 'percentage_decrease' (giảm phần trăm), 'absolute_increase' (tăng giá trị tuyệt đối), 'absolute_decrease' (giảm giá trị tuyệt đối), 'set_value' (đặt giá trị mới)." },
-                update_value: { type: Type.NUMBER, description: 'Giá trị cho việc cập nhật (ví dụ: 10 cho 10%, 5000 cho 5000 VND).' },
-              }, required: ['filter_property', 'target_property', 'update_type', 'update_value'],
-            },
-          },
-          {
-            name: 'add_product_to_plan',
-            description: 'Thêm một sản phẩm mới từ danh mục vào kế hoạch kinh doanh.',
-            parameters: {
-              type: Type.OBJECT, properties: {
-                product_name: { type: Type.STRING, description: 'Tên tiếng Việt chính xác của sản phẩm cần thêm, bao gồm cả nhóm hàng.' },
-                quantity_kg: { type: Type.NUMBER, description: 'Số lượng tính bằng kg.' },
-                price_usd_per_ton: { type: Type.NUMBER, description: 'Giá mua USD/tấn. Nếu không cung cấp, sẽ dùng giá mặc định.' },
-                selling_price_vnd_per_kg: { type: Type.NUMBER, description: 'Giá bán VND/kg. Nếu không cung cấp, sẽ dùng giá mặc định.' },
-              }, required: ['product_name', 'quantity_kg'],
-            },
-          },
-          {
-            name: 'update_general_setting',
-            description: 'Cập nhật một cài đặt chung của toàn bộ kế hoạch.',
-            parameters: {
-              type: Type.OBJECT, properties: {
-                setting_name: { type: Type.STRING, description: `Tên cài đặt cần thay đổi. Giá trị hợp lệ: ${Object.keys(settingMap).join(', ')}.` },
-                new_value: { type: Type.NUMBER, description: 'Giá trị số mới.' },
-              }, required: ['setting_name', 'new_value'],
-            },
-          },
-          {
-            name: 'remove_product_from_plan',
-            description: 'Xóa một sản phẩm khỏi kế hoạch kinh doanh.',
-            parameters: {
-              type: Type.OBJECT, properties: {
-                product_name: { type: Type.STRING, description: 'Tên tiếng Việt của sản phẩm cần xóa, bao gồm cả nhóm hàng.' },
-              }, required: ['product_name'],
-            },
-          }
-        ];
+      // INJECT CURRENT PLAN CONTEXT
+      // Instead of resetting the chat, we provide the current plan items as context in the message
+      const productSummary = planItems.length > 0 
+        ? planItems.map(p => `${p.group} - ${p.nameVI} (${p.brand})`).join(', ')
+        : 'Chưa có sản phẩm nào.';
+      
+      const contextMessage = `
+[SYSTEM CONTEXT - DỮ LIỆU HIỆN TẠI]
+Danh sách sản phẩm đang có trong kế hoạch: ${productSummary}
+Bạn có thể thao tác thêm/sửa/xóa dựa trên danh sách này.
+-----------------------------------
+[USER REQUEST]
+${currentInput}
+      `;
 
-        const systemInstruction = `You are a helpful AI assistant for a business planning application. The user is creating a business plan for importing and selling frozen food products in Vietnam.
-- The user will give instructions in Vietnamese. You must respond in Vietnamese.
-- Your primary goal is to help the user modify their business plan using the provided tools.
-- If the user's request is ambiguous (e.g., "update the price for Alana"), you MUST ask for clarification (e.g., "Which Alana product do you mean? And do you want to update the purchase price or selling price?").
-- Be concise and helpful. 
-- **Current Plan Context:**
-  - Products currently in the plan (Tên sản phẩm): ${planItems.length > 0 ? planItems.map(p => `'${p.group} - ${p.nameVI}' (thương hiệu ${p.brand}, mã ${p.code})`).join(', ') : 'Chưa có sản phẩm nào'}.
-- **Available Products for Adding:**
-  - You can add products from this master list: ${products.map(p => `'${p.group} - ${p.nameVI}' (thương hiệu ${p.brand}, mã ${p.code})`).join(', ')}.
-- **Function Calling Rules:**
-  - ALWAYS use the exact Vietnamese product name with its group (e.g., 'Thịt trâu - Thăn ngoại') as found in the context when calling functions. Do not guess or abbreviate.`;
-
-        chatRef.current = ai.chats.create({
-          model: 'gemini-2.5-flash',
-          config: {
-            tools: [{ functionDeclarations: tools }],
-            systemInstruction: systemInstruction,
-          },
-        });
-      }
-
-      const response = await chatRef.current.sendMessage({ message: currentInput });
+      const response = await chatRef.current.sendMessage({ message: contextMessage });
 
       if (response.functionCalls && response.functionCalls.length > 0) {
         executeFunctionCalls(response.functionCalls);
-        setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Đã thực hiện xong! Bạn có cần tôi giúp gì nữa không?' }]);
+        setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Đã thực hiện xong yêu cầu của anh! Anh Cường có cần em giúp gì nữa không ạ?' }]);
       } else {
         setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: response.text }]);
       }
 
     } catch (error) {
       console.error("AI Assistant Error:", error);
-      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại.' }]);
+      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'Xin lỗi anh, em gặp chút trục trặc. Anh thử lại giúp em nhé.' }]);
     } finally {
       setIsLoading(false);
     }
@@ -400,70 +414,80 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <header className="flex items-center justify-between p-4 border-b">
+    <div 
+        ref={widgetRef}
+        className="fixed bottom-4 right-4 z-50 flex flex-col bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden w-96 h-[600px] transition-all transform duration-300 ease-in-out"
+        style={{ maxHeight: 'calc(100vh - 2rem)' }}
+    >
+        <header className="flex items-center justify-between p-4 bg-blue-600 text-white">
           <div className="flex items-center space-x-2">
-            <ChatBubbleIcon className="h-6 w-6 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-800">AI của anh Cường</h2>
+            <ChatBubbleIcon className="h-6 w-6 text-white" />
+            <div>
+                <h2 className="text-md font-bold">AI của anh Cường</h2>
+                <p className="text-xs text-blue-100 opacity-90">Trợ lý ảo thông minh</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-blue-100 hover:text-white transition-colors">
             <XIcon className="h-6 w-6" />
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 space-y-4">
+        <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] p-3 rounded-lg ${
-                msg.sender === 'user' ? 'bg-blue-500 text-white' : 
-                msg.sender === 'ai' ? 'bg-gray-200 text-gray-800' : 
-                'bg-yellow-100 text-yellow-800 border border-yellow-200 text-sm italic w-full'
+              <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
+                msg.sender === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 
+                msg.sender === 'ai' ? 'bg-white text-gray-800 border border-gray-200 shadow-sm rounded-tl-none' : 
+                'bg-yellow-50 text-yellow-800 border border-yellow-200 text-xs italic w-full text-center'
               }`}>
-                {msg.text.split('\n').map((line, index) => <p key={index}>{line}</p>)}
+                {msg.text.split('\n').map((line, index) => <p key={index} className={index > 0 ? 'mt-1' : ''}>{line}</p>)}
               </div>
             </div>
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gray-200 text-gray-800 p-3 rounded-lg">
-                <span className="animate-pulse">AI đang suy nghĩ...</span>
+              <div className="bg-white text-gray-800 p-3 rounded-2xl rounded-tl-none border border-gray-200 shadow-sm">
+                <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                </div>
               </div>
             </div>
           )}
           <div ref={chatEndRef} />
         </main>
 
-        <footer className="p-4 border-t bg-white">
+        <footer className="p-3 bg-white border-t border-gray-200">
           <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="Nhập yêu cầu của bạn..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isLoading}
-            />
             <button
               onClick={handleVoiceInput}
               disabled={isLoading || !recognition}
-              className={`p-2 rounded-full transition-colors ${isListening ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'} disabled:bg-gray-100 disabled:text-gray-400`}
-              aria-label={isListening ? 'Dừng ghi âm' : 'Bắt đầu ghi âm'}
+              className={`p-2 rounded-full transition-colors flex-shrink-0 ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'} disabled:opacity-50`}
+              title="Nói để nhập liệu"
             >
-              <MicrophoneIcon className="h-6 w-6" />
+              <MicrophoneIcon className="h-5 w-5" />
             </button>
+            <div className="flex-1 relative">
+                <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Nhập yêu cầu..."
+                className="w-full pl-3 pr-2 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                disabled={isLoading}
+                />
+            </div>
             <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-300"
-              aria-label="Gửi"
+              className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 flex-shrink-0 transition-colors"
             >
-              <SendIcon className="h-6 w-6" />
+              <SendIcon className="h-5 w-5" />
             </button>
           </div>
         </footer>
-      </div>
     </div>
   );
 };

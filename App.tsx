@@ -22,18 +22,20 @@ const moduleTitles: { [key in ModuleType]: string } = {
 
 const App: React.FC = () => {
   const [activeModule, setActiveModule] = useState<ModuleType>('businessPlan');
-  // Default sidebar to open on desktop (md breakpoint: 768px) and closed on mobile.
-  // This prevents the sidebar from covering the content and toggle button on small screens on initial load.
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.matchMedia('(min-width: 768px)').matches;
-    }
-    return true; // Fallback for non-browser environments
-  });
+  // Mặc định đóng Sidebar để tối đa hóa diện tích nhìn ngay từ đầu
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleNavigate = (module: ModuleType) => {
     setActiveModule(module);
+    // Đảm bảo đóng sidebar khi điều hướng từ các module con
+    setIsSidebarOpen(false);
   };
+
+  const handleSidebarNavigation = (module: ModuleType) => {
+    setActiveModule(module);
+    // Tự động đóng sidebar sau khi chọn menu để người dùng xem nội dung ngay
+    setIsSidebarOpen(false);
+  }
 
   const renderActiveModule = () => {
     switch (activeModule) {
@@ -55,26 +57,29 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-gray-100 text-gray-800 font-sans relative">
-      {/* Overlay for mobile when sidebar is open */}
+    <div className="h-screen bg-gray-100 text-gray-800 font-sans relative overflow-hidden">
+      {/* Overlay: Hiển thị trên MỌI màn hình khi sidebar mở. Click vào đây sẽ đóng sidebar */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 transition-opacity duration-300"
           onClick={() => setIsSidebarOpen(false)}
           aria-hidden="true"
         ></div>
       )}
+      
       <Sidebar
         activeModule={activeModule}
-        setActiveModule={setActiveModule}
+        setActiveModule={handleSidebarNavigation}
         isOpen={isSidebarOpen}
       />
-      <div className={`h-full flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:ml-64' : 'ml-0'}`}>
+      
+      {/* Content wrapper: Luôn full width (ml-0) vì sidebar giờ là overlay */}
+      <div className="h-full flex flex-col transition-all duration-300 ease-in-out ml-0 w-full">
         <Header
           title={moduleTitles[activeModule]}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto relative">
           {renderActiveModule()}
         </main>
       </div>

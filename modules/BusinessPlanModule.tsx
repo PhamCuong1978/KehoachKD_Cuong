@@ -11,9 +11,10 @@ import { ReportGenerator } from '../components/ReportGenerator';
 import { DatabaseIcon } from '../components/icons/DatabaseIcon';
 import { DocumentDownloadIcon } from '../components/icons/DocumentDownloadIcon';
 import { UploadIcon } from '../components/icons/UploadIcon';
-import { AiAssistantModal } from '../components/AiAssistantModal';
+import { AiAssistantWidget } from '../components/AiAssistantWidget';
 import { AddProductModal } from '../components/AddProductModal';
 import { SavePlanModal } from '../components/SavePlanModal';
+import { ChatBubbleIcon } from '../components/icons/ChatBubbleIcon';
 
 const BusinessPlanModule: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(() => {
@@ -60,7 +61,7 @@ const BusinessPlanModule: React.FC = () => {
   const [totalMonthlyFinancialCost, setTotalMonthlyFinancialCost] = useState<number>(0);
 
   const [selectedProductCode, setSelectedProductCode] = useState<string>(products.length > 0 ? products[0].code : '');
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isAiWidgetOpen, setIsAiWidgetOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
@@ -325,7 +326,7 @@ const BusinessPlanModule: React.FC = () => {
               loanFirstTransferInterestDays: 30,
               postClearanceStorageDays: 20,
               postClearanceStorageRatePerKgDay: 150,
-              importVatRate: 5,
+              importVatRate: 0,
               purchasingServiceFeeInMillionsPerCont: 5,
               buyerDeliveryFee: 0,
               otherInternationalCosts: 0,
@@ -375,7 +376,7 @@ const BusinessPlanModule: React.FC = () => {
 
   return (
     <>
-      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8 pb-24">
         <div className="flex flex-col gap-6 mb-6">
           {currentPlanId && (
               <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 px-4 py-3 rounded relative flex items-center justify-between" role="alert">
@@ -457,7 +458,7 @@ const BusinessPlanModule: React.FC = () => {
             items={planItems}
             exchangeRateImport={exchangeRateImport}
             exchangeRateTax={exchangeRateTax}
-            onOpenAiAssistant={() => setIsAiModalOpen(true)}
+            onOpenAiAssistant={() => setIsAiWidgetOpen(true)}
             onSavePlan={handleOpenSaveModal}
           />
         </div>
@@ -498,9 +499,11 @@ const BusinessPlanModule: React.FC = () => {
             </div>
         </div>
       </div>
-      <AiAssistantModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
+      
+      {/* AI Assistant Widget */}
+      <AiAssistantWidget
+        isOpen={isAiWidgetOpen}
+        onClose={() => setIsAiWidgetOpen(false)}
         products={products}
         planItems={planItems}
         updatePlanItem={updatePlanItem}
@@ -522,6 +525,21 @@ const BusinessPlanModule: React.FC = () => {
           setTotalMonthlyFinancialCost,
         }}
       />
+      
+      {/* Floating Action Button for AI - Only visible when widget is closed */}
+      {!isAiWidgetOpen && (
+        <button
+            onClick={() => setIsAiWidgetOpen(true)}
+            className="fixed bottom-6 right-6 p-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 transition-all duration-300 z-40 flex items-center justify-center group"
+            title="Chat với AI của anh Cường"
+        >
+            <ChatBubbleIcon className="h-8 w-8" />
+            <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-in-out whitespace-nowrap ml-0 group-hover:ml-2 text-sm font-bold">
+                AI của anh Cường
+            </span>
+        </button>
+      )}
+
       <AddProductModal
         isOpen={isAddProductModalOpen}
         onClose={() => setIsAddProductModalOpen(false)}

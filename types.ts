@@ -65,6 +65,7 @@ export interface PlanItem extends Product {
     loanInterestCostFirstTransfer?: number; // New for 1.6
     loanSecondTransferAmountVND?: number; // New for 1.6
     loanInterestCostSecondTransfer?: number; // New for 1.6
+    vatLoanInterestCost?: number; // New for 1.6 (Interest on VAT payment)
     postClearanceStorageCost?: number; // 1.7
     purchasingServiceFee?: number; // Replaces postClearanceFinancialCost for 1.8
     otherInternationalPurchaseCost?: number; // 1.10

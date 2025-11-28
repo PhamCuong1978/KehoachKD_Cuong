@@ -57,7 +57,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-gray-100 text-gray-800 font-sans relative overflow-hidden">
+    <div className="h-screen bg-gray-100 text-gray-800 font-sans relative overflow-hidden flex flex-row">
       {/* Overlay: Hiển thị trên MỌI màn hình khi sidebar mở. Click vào đây sẽ đóng sidebar */}
       {isSidebarOpen && (
         <div 
@@ -67,19 +67,20 @@ const App: React.FC = () => {
         ></div>
       )}
       
+      {/* Sidebar: Fixed position, sliding in from left */}
       <Sidebar
         activeModule={activeModule}
         setActiveModule={handleSidebarNavigation}
         isOpen={isSidebarOpen}
       />
       
-      {/* Content wrapper: Luôn full width (ml-0) vì sidebar giờ là overlay */}
-      <div className="h-full flex flex-col transition-all duration-300 ease-in-out ml-0 w-full">
+      {/* Content wrapper: Chiếm toàn bộ chiều rộng còn lại */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full">
         <Header
           title={moduleTitles[activeModule]}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto relative">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto relative w-full">
           {renderActiveModule()}
         </main>
       </div>

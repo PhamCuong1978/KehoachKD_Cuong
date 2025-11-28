@@ -23,6 +23,7 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
   onAddNewProduct,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [productType, setProductType] = useState<'import' | 'domestic'>('import');
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery) return products;
@@ -47,6 +48,7 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
   const [quantityInKg, setQuantityInKg] = useState(0);
   const [quantityInCont, setQuantityInCont] = useState('');
   const [priceUSD, setPriceUSD] = useState(0);
+  const [domesticPriceVND, setDomesticPriceVND] = useState(0);
   const [sellingPrice, setSellingPrice] = useState(0);
 
   useEffect(() => {
@@ -56,6 +58,8 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
       setQuantityInCont('1');
       setPriceUSD(selectedProduct.defaultPriceUSDPerTon);
       setSellingPrice(selectedProduct.defaultSellingPriceVND);
+      // Reset domestic price when product changes
+      setDomesticPriceVND(0);
     }
   }, [selectedProduct]);
 
@@ -79,8 +83,10 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
     addProductToPlan({
       productCode: selectedProductCode,
       quantityInKg: Number(quantityInKg) || 0,
-      priceUSDPerTon: Number(priceUSD) || 0,
+      priceUSDPerTon: productType === 'import' ? (Number(priceUSD) || 0) : 0,
+      domesticPurchasePriceVNDPerKg: productType === 'domestic' ? (Number(domesticPriceVND) || 0) : 0,
       sellingPriceVNDPerKg: Number(sellingPrice) || 0,
+      type: productType,
     });
   };
 
@@ -91,14 +97,42 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
         Thêm sản phẩm vào kế hoạch
       </h3>
       <div className="space-y-4">
-        <InputGroup
-          id="product-search"
-          label="Tìm kiếm sản phẩm (theo mã, tên, thương hiệu, nhóm)"
-          type="text"
-          placeholder="Ví dụ: gõ 'thịt trâu' hoặc 'thăn'..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <InputGroup
+            id="product-search"
+            label="Tìm kiếm sản phẩm"
+            type="text"
+            placeholder="Mã, tên, thương hiệu..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1"
+            />
+            
+            {/* Toggle Switch */}
+            <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-lg">
+                <button
+                    onClick={() => setProductType('import')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                        productType === 'import' 
+                        ? 'bg-white text-indigo-600 shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    Nhập khẩu
+                </button>
+                <button
+                    onClick={() => setProductType('domestic')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                        productType === 'domestic' 
+                        ? 'bg-white text-teal-600 shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    Trong nước
+                </button>
+            </div>
+        </div>
+
         <div>
           <div className="flex justify-between items-center mb-1">
             <label htmlFor="product-select" className="block text-sm font-medium text-gray-700">
@@ -129,7 +163,13 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <FormattedNumberInput id="quantity-kg" label="Số lượng (KG)" value={quantityInKg} onChange={handleKgChange} enableVoice />
           <InputGroup id="quantity-cont" label="Số lượng (Cont)" type="number" value={quantityInCont} onChange={handleContChange} step="0.01"/>
-          <FormattedNumberInput id="price-usd" label="Giá nhập (USD/Tấn)" value={priceUSD} onChange={setPriceUSD} decimalPlaces={2} enableVoice />
+          
+          {productType === 'import' ? (
+             <FormattedNumberInput id="price-usd" label="Giá nhập (USD/Tấn)" value={priceUSD} onChange={setPriceUSD} decimalPlaces={2} enableVoice />
+          ) : (
+             <FormattedNumberInput id="domestic-price-vnd" label="Giá mua trong nước (VNĐ/kg)" value={domesticPriceVND} onChange={setDomesticPriceVND} addon="Có VAT" enableVoice />
+          )}
+          
           <FormattedNumberInput id="selling-price-vnd" label="Giá bán (VND/KG)" value={sellingPrice} onChange={setSellingPrice} enableVoice />
         </div>
 

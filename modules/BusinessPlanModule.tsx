@@ -46,7 +46,7 @@ const BusinessPlanModule: React.FC = () => {
   
   const [exchangeRateImport, setExchangeRateImport] = useState<number>(26356);
   const [exchangeRateTax, setExchangeRateTax] = useState<number>(26154);
-  const [salesSalaryRate, setSalesSalaryRate] = useState<number>(20);
+  const [salesSalaryRate, setSalesSalaryRate] = useState<number>(0);
   const [totalMonthlyIndirectSalary, setTotalMonthlyIndirectSalary] = useState<number>(75000000);
   const [workingDaysPerMonth, setWorkingDaysPerMonth] = useState<number>(24);
   
@@ -304,6 +304,8 @@ const BusinessPlanModule: React.FC = () => {
 
   const addProductToPlan = (details: AddProductDetails) => {
     const productToAdd = products.find(p => p.code === details.productCode);
+    const isDomestic = details.type === 'domestic';
+
     if (productToAdd) {
       const uniqueId = `${productToAdd.code}-${new Date().getTime()}`;
       if (!planItems.some(item => item.id === uniqueId)) {
@@ -311,10 +313,12 @@ const BusinessPlanModule: React.FC = () => {
           id: uniqueId,
           ...productToAdd,
           userInput: {
-            priceUSDPerTon: details.priceUSDPerTon,
+            type: details.type,
+            priceUSDPerTon: details.priceUSDPerTon || 0,
+            domesticPurchasePriceVNDPerKg: details.domesticPurchasePriceVNDPerKg || 0,
             sellingPriceVNDPerKg: details.sellingPriceVNDPerKg,
             quantityInKg: details.quantityInKg,
-            outputVatRate: 5, // Default Output VAT Rate
+            outputVatRate: 5, // Default Output VAT Rate (now 5% for all as base, specific for domestic)
             costs: {
               customsFee: 0,
               quarantineFee: 0,
@@ -325,12 +329,13 @@ const BusinessPlanModule: React.FC = () => {
               loanFirstTransferUSD: 10000,
               loanFirstTransferInterestDays: 30,
               postClearanceStorageDays: 20,
-              postClearanceStorageRatePerKgDay: 12, // Updated default to 12
-              importVatRate: 0,
-              purchasingServiceFeeInMillionsPerCont: 5,
+              postClearanceStorageRatePerKgDay: 12, 
+              importVatRate: isDomestic ? 5 : 0, // Default 5% for domestic, 0% for import
+              purchasingServiceFeeInMillionsPerCont: isDomestic ? 0 : 5, // Default 0 for domestic
               buyerDeliveryFee: 0,
               otherInternationalCosts: 0,
               otherSellingCosts: 0,
+              otherExpenses: 0, 
             }
           },
           calculated: {},

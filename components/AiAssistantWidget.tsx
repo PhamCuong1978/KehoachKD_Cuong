@@ -417,7 +417,7 @@ ${currentInput}
   return (
     <div 
         ref={widgetRef}
-        className="fixed bottom-4 right-4 z-50 flex flex-col bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden w-96 h-[600px] transition-all transform duration-300 ease-in-out"
+        className="fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 flex flex-col bg-white sm:rounded-xl shadow-2xl border border-gray-200 overflow-hidden w-full sm:w-96 h-[80vh] sm:h-[600px] transition-all transform duration-300 ease-in-out"
         style={{ maxHeight: 'calc(100vh - 2rem)' }}
     >
         <header className="flex items-center justify-between p-4 bg-blue-600 text-white">

@@ -1,5 +1,5 @@
 {
-  "name": "Vr_5.4.PhuongAnKD_TP",
+  "name": "Vr_5.4.8.PhuongAnKD_TP",
   "description": "An interactive tool to create and analyze a business plan for imported goods. Users can select products, input purchase and selling prices, set exchange rates, and instantly see a detailed financial breakdown from gross revenue to net profit.",
   "requestFramePermissions": [
     "microphone"

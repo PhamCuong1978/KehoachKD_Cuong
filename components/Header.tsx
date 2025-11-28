@@ -8,17 +8,21 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ title, toggleSidebar }) => {
+  const currentDate = new Date().toLocaleDateString('vi-VN');
 
   return (
-    <header className="bg-white shadow-sm flex-shrink-0">
+    <header className="bg-white shadow-sm flex-shrink-0 sticky top-0 z-10">
       <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center">
-          <button onClick={toggleSidebar} className="text-gray-500 hover:text-gray-700 focus:outline-none mr-4">
+        <div className="flex items-center overflow-hidden">
+          <button onClick={toggleSidebar} className="text-gray-500 hover:text-gray-700 focus:outline-none mr-3 flex-shrink-0">
             <MenuIcon className="h-6 w-6" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{title}</h1>
         </div>
-        <span className="text-base font-bold text-gray-500">Version 5.4</span>
+        <div className="flex flex-col items-end">
+          <span className="text-base sm:text-lg font-bold text-gray-700 ml-2 whitespace-nowrap">Version 5.4.8</span>
+          <span className="text-xs text-gray-400 italic">{currentDate}</span>
+        </div>
       </div>
     </header>
   );

@@ -31,52 +31,105 @@ const DIVIDEND_RATE = 0.30;
  */
 function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   const { defaultWeightKg, userInput } = item;
-  const { costs, quantityInKg } = userInput;
+  const { costs, quantityInKg, type = 'import' } = userInput;
+  const isDomestic = type === 'domestic';
   
   const importVatRate = (costs.importVatRate || 0) / 100;
   // Use userInput.outputVatRate if present, otherwise fall back to importVatRate (legacy behavior)
   const outputVatRate = (userInput.outputVatRate !== undefined ? userInput.outputVatRate : (costs.importVatRate || 0)) / 100;
 
   const containers = quantityInKg > 0 && defaultWeightKg > 0 ? quantityInKg / defaultWeightKg : 0;
-  const priceUSDPerKg = userInput.priceUSDPerTon / 1000;
-  const importValueUSD = quantityInKg * priceUSDPerKg;
-  const importValueVND = importValueUSD * rates.importRate;
-  const importVAT = quantityInKg * priceUSDPerKg * rates.taxRate * importVatRate;
-  const priceVNDPerTon = userInput.priceUSDPerTon * rates.importRate;
+  
+  // --- VALUE CALCULATION ---
+  let importValueUSD = 0;
+  let importValueVND = 0; // Represents Base Cost (excl VAT) for Domestic
+  let importVAT = 0;
+  let priceUSDPerKg = 0;
+  let priceVNDPerTon = 0;
+
+  if (isDomestic) {
+      // Domestic Calculation
+      const domesticPriceInclVAT = userInput.domesticPurchasePriceVNDPerKg || 0;
+      const domesticPriceExclVAT = domesticPriceInclVAT / (1 + importVatRate);
+      
+      importValueVND = domesticPriceExclVAT * quantityInKg;
+      importVAT = importValueVND * importVatRate;
+      priceVNDPerTon = domesticPriceExclVAT * 1000; // Just for consistency
+  } else {
+      // Import Calculation
+      priceUSDPerKg = userInput.priceUSDPerTon / 1000;
+      importValueUSD = quantityInKg * priceUSDPerKg;
+      importValueVND = importValueUSD * rates.importRate;
+      importVAT = quantityInKg * priceUSDPerKg * rates.taxRate * importVatRate;
+      priceVNDPerTon = userInput.priceUSDPerTon * rates.importRate;
+  }
+
   const totalRevenueInclVAT = userInput.sellingPriceVNDPerKg * quantityInKg;
 
-  // New import interest cost calculation (1.6) - Updated Logic
+  // --- COSTS CALCULATION ---
+  
+  // Interest Calculation
   const dailyInterestRate = (costs.loanInterestRatePerYear / 100) / 365;
-  
-  // 1. Interest on First Transfer
-  const loanFirstTransferAmountVND = costs.loanFirstTransferUSD * rates.importRate;
-  const loanInterestCostFirstTransfer = loanFirstTransferAmountVND * dailyInterestRate * costs.loanFirstTransferInterestDays;
-  
-  // 2. Interest on Second Transfer (Remaining Balance)
-  // Amount = Total Import Value - First Transfer Amount. If First Transfer > Total, then 0.
-  // Duration = Post Clearance Storage Days (1.7)
-  const loanSecondTransferAmountVND = Math.max(0, importValueVND - loanFirstTransferAmountVND);
-  const loanInterestCostSecondTransfer = loanSecondTransferAmountVND * dailyInterestRate * costs.postClearanceStorageDays;
+  let importInterestCost = 0;
+  let loanFirstTransferAmountVND = 0;
+  let loanInterestCostFirstTransfer = 0;
+  let loanSecondTransferAmountVND = 0;
+  let loanInterestCostSecondTransfer = 0;
+  let vatLoanInterestCost = 0;
 
-  // 3. Interest on VAT Payment
-  // Amount = Import VAT
-  // Duration = Post Clearance Storage Days (1.7)
-  // Only if VAT rate > 0
-  const vatLoanInterestCost = importVAT > 0 
-    ? importVAT * dailyInterestRate * costs.postClearanceStorageDays 
-    : 0;
-
-  const importInterestCost = loanInterestCostFirstTransfer + loanInterestCostSecondTransfer + vatLoanInterestCost;
+  if (isDomestic) {
+      // For domestic, we assume loan is on the full purchase amount (incl VAT usually, but let's stick to base + VAT needs logic).
+      // Simplified: Loan on Total Payment (Price Incl VAT)
+      // Usually domestic payment terms vary. Assuming similar logic: First transfer % ? 
+      // Let's reuse the fields but interpret them differently. 
+      // loanFirstTransferUSD -> interpreted as Loan Amount First Transfer in VND if > 1000000? No, let's keep logic simple.
+      // If domestic, we calculate interest on the Total Purchase Price (Incl VAT) for the storage duration
+      // or use the same split logic if user enters data.
+      // For simplicity in this version: Interest on Total Purchase Value (Incl VAT) for Storage Days
+      
+      const totalPurchaseValueInclVAT = (userInput.domesticPurchasePriceVNDPerKg || 0) * quantityInKg;
+      
+      // Calculate interest on the whole amount for the storage period (turnover period)
+      // We can reuse loanFirstTransfer fields if we want complex logic, but let's default to simple for domestic
+      // Simple: Total Value * Daily Rate * Days
+      importInterestCost = totalPurchaseValueInclVAT * dailyInterestRate * costs.postClearanceStorageDays;
+      
+  } else {
+      // Import Interest Logic
+      loanFirstTransferAmountVND = costs.loanFirstTransferUSD * rates.importRate;
+      loanInterestCostFirstTransfer = loanFirstTransferAmountVND * dailyInterestRate * costs.loanFirstTransferInterestDays;
+      loanSecondTransferAmountVND = Math.max(0, importValueVND - loanFirstTransferAmountVND);
+      loanInterestCostSecondTransfer = loanSecondTransferAmountVND * dailyInterestRate * costs.postClearanceStorageDays;
+      vatLoanInterestCost = importVAT > 0 ? importVAT * dailyInterestRate * costs.postClearanceStorageDays : 0;
+      importInterestCost = loanInterestCostFirstTransfer + loanInterestCostSecondTransfer + vatLoanInterestCost;
+  }
 
   const generalWarehouseCost = quantityInKg * costs.generalWarehouseCostRatePerKg;
   const postClearanceStorageCost = quantityInKg * costs.postClearanceStorageDays * costs.postClearanceStorageRatePerKgDay;
-  const purchasingServiceFee = containers * costs.purchasingServiceFeeInMillionsPerCont * 1000000; // New for 1.8
-  const otherInternationalPurchaseCost = costs.otherInternationalCosts; // New for 1.10
+  const purchasingServiceFee = containers * costs.purchasingServiceFeeInMillionsPerCont * 1000000;
+  const otherInternationalPurchaseCost = costs.otherInternationalCosts;
+  
+  const otherExpenses = costs.otherExpenses || 0;
 
-  const totalClearanceAndLogisticsCost =
-    costs.customsFee + costs.quarantineFee + costs.containerRentalFee + costs.portStorageFee +
-    generalWarehouseCost + importInterestCost + postClearanceStorageCost +
-    purchasingServiceFee + costs.buyerDeliveryFee + otherInternationalPurchaseCost;
+  let totalClearanceAndLogisticsCost = 0;
+  
+  if (isDomestic) {
+      // Domestic: Skip customs, quarantine, container, port storage, general warehouse (usually part of "Kho" but prompt said hide 1.5)
+      // Prompt said: Hide 1.1 -> 1.5. So exclude them from total.
+      // Include: Interest (1.6->1.1), Post Clearance Storage (1.7->1.2), Purchasing (1.8->1.3), Delivery (1.9->1.4), Other (1.10->1.5)
+      totalClearanceAndLogisticsCost = 
+          importInterestCost + 
+          postClearanceStorageCost +
+          purchasingServiceFee + 
+          costs.buyerDeliveryFee + 
+          otherInternationalPurchaseCost;
+  } else {
+      // Import: Include all
+      totalClearanceAndLogisticsCost =
+        costs.customsFee + costs.quarantineFee + costs.containerRentalFee + costs.portStorageFee +
+        generalWarehouseCost + importInterestCost + postClearanceStorageCost +
+        purchasingServiceFee + costs.buyerDeliveryFee + otherInternationalPurchaseCost;
+  }
   
   const sellingPriceExclVAT = userInput.sellingPriceVNDPerKg / (1 + outputVatRate);
   const totalRevenue = sellingPriceExclVAT * quantityInKg;
@@ -103,6 +156,7 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
     postClearanceStorageCost,
     purchasingServiceFee,
     otherInternationalPurchaseCost,
+    otherExpenses,
     sellingPriceExclVAT,
     totalRevenue,
     totalCOGS,
@@ -120,8 +174,6 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
   const { userInput } = item;
   const { costs, quantityInKg } = userInput;
   
-  const vatRate = (costs.importVatRate || 0) / 100; // Still used for logic if needed, but mainly we use outputVatRate now
-
   const totalSalesSalary = totals.totalGrossProfit * (rates.salesSalaryRate / 100);
   
   const createAllocator = (totalCost: number) => {
@@ -146,13 +198,18 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
     allocatedDepreciation + allocatedExternalServices + allocatedOtherCashExpenses;
   
   const totalFinancialCost = allocatedFinancialCost;
+  
+  const otherExpenses = item.calculated.otherExpenses || 0;
 
   // Output VAT is simply Revenue Incl VAT - Revenue Excl VAT
   const outputVAT = (item.calculated.totalRevenueInclVAT ?? 0) - (item.calculated.totalRevenue ?? 0);
   const vatPayable = outputVAT - (item.calculated.importVAT ?? 0);
   const cogsPerKg = quantityInKg > 0 ? (item.calculated.totalCOGS ?? 0) / quantityInKg : 0;
   const totalOperatingCost = totalSellingCost + totalGaCost;
-  const totalPreTaxCost = (item.calculated.totalCOGS ?? 0) + totalOperatingCost + totalFinancialCost;
+  
+  // Total Pre Tax Cost includes: COGS, Operating (Selling + G&A), Financial, and Other (811)
+  const totalPreTaxCost = (item.calculated.totalCOGS ?? 0) + totalOperatingCost + totalFinancialCost + otherExpenses;
+  
   const profitBeforeTax = (item.calculated.totalRevenue ?? 0) - totalPreTaxCost;
   
   // CHANGED: Removed the check (profitBeforeTax > 0). 

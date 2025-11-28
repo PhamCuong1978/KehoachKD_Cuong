@@ -34,7 +34,7 @@ interface PlanTableProps {
 }
 
 const tableHeaders = [
-  "Sản phẩm", "Doanh thu", "Giá vốn", "CP Vận hành & kho", "Lợi nhuận gộp", "CP Bán hàng", "CP Quản lý", "CP Tài chính",
+  "Sản phẩm", "Doanh thu", "Giá vốn", "CP Vận hành & kho", "Lợi nhuận gộp", "CP Bán hàng", "CP Quản lý", "CP Tài chính", "Chi phí khác",
   "Lợi nhuận trước thuế", "Thuế TNDN", "Lãi ròng", "Thuế GTGT Mua vào", "Thuế GTGT Bán ra", "Thuế GTGT Phải nộp", "Tổng thuế phải nộp", "Tỷ lệ Lãi ròng/Doanh thu"
 ];
 

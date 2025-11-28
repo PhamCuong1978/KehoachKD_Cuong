@@ -116,67 +116,75 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ items, exchang
     setStatusText('Bắt đầu quá trình...');
 
     try {
+        // Filter items by type
+        const importItems = items.filter(i => i.userInput.type !== 'domestic');
+        const domesticItems = items.filter(i => i.userInput.type === 'domestic');
+
+        // Calculate totals for each group
         const totals = calculateTotalsForAI(items);
+        const importTotals = calculateTotalsForAI(importItems);
+        const domesticTotals = calculateTotalsForAI(domesticItems);
+
         const netRevenue = totals.totalRevenue;
         
-        const grossProfitMargin = netRevenue > 0 ? (totals.grossProfit / netRevenue * 100).toFixed(2) : '0';
-        const netProfitMargin = netRevenue > 0 ? (totals.netProfit / netRevenue * 100).toFixed(2) : '0';
-        
+        // Helper to safe calc margins
+        const calcMargin = (profit: number, revenue: number) => revenue > 0 ? (profit / revenue * 100).toFixed(2) : '0';
+
         setProgress(30);
-        setStatusText('Đang chuẩn bị dữ liệu cho AI...');
+        setStatusText('Đang chuẩn bị dữ liệu phân tách cho AI...');
 
         const prompt = `
           **Bối cảnh:**
-          Đóng vai một AI chuyên ngành phân tích tài chính doanh nghiệp với nhiều năm kinh nghiệm trong lĩnh vực định giá và đánh giá hiệu quả hoạt động kinh doanh.
+          Đóng vai một chuyên gia phân tích tài chính cấp cao (CFO) với nhiều năm kinh nghiệm trong ngành thương mại thực phẩm đông lạnh.
           
           **Nhiệm vụ:**
-          Dựa vào dữ liệu tóm tắt từ một kế hoạch kinh doanh dưới đây, hãy đọc và phân tích báo cáo kết quả kinh doanh. Hãy trình bày một bản phân tích chuyên sâu, logic, và có luận cứ rõ ràng.
+          Phân tích sâu bản kế hoạch kinh doanh, đặc biệt tập trung vào việc **SO SÁNH HIỆU QUẢ** giữa mảng Kinh doanh Nhập khẩu và Kinh doanh Nội địa.
 
-          **Dữ liệu kế hoạch kinh doanh:**
-          - **Tổng Doanh thu thuần:** ${formatCurrency(netRevenue)} VND
-          - **Tổng Giá vốn hàng bán (COGS):** ${formatCurrency(totals.totalCOGS)} VND
-          - **Tổng Lợi nhuận gộp:** ${formatCurrency(totals.grossProfit)} VND
-          - **Tổng Chi phí hoạt động (Bán hàng + QLDN):** ${formatCurrency(totals.totalSellingCost + totals.totalGaCost)} VND
-          - **Tổng Chi phí tài chính:** ${formatCurrency(totals.totalFinancialCost)} VND
-          - **Tổng Lợi nhuận trước thuế:** ${formatCurrency(totals.profitBeforeTax)} VND
-          - **Tổng Lợi nhuận ròng (sau thuế):** ${formatCurrency(totals.netProfit)} VND
+          **DỮ LIỆU TỔNG HỢP (TOÀN CÔNG TY):**
+          - Doanh thu thuần: ${formatCurrency(netRevenue)} VND
+          - Lợi nhuận gộp: ${formatCurrency(totals.grossProfit)} VND (Biên: ${calcMargin(totals.grossProfit, netRevenue)}%)
+          - Lợi nhuận ròng: ${formatCurrency(totals.netProfit)} VND (Biên: ${calcMargin(totals.netProfit, netRevenue)}%)
+          - Tổng chi phí hoạt động: ${formatCurrency(totals.totalSellingCost + totals.totalGaCost)} VND
 
-          **Các chỉ số hiệu suất chính:**
-          - **Tỷ suất lợi nhuận gộp:** ${grossProfitMargin}%
-          - **Tỷ suất lợi nhuận ròng:** ${netProfitMargin}%
-          - **Cơ cấu chi phí trên doanh thu:**
-            - Tỷ lệ Giá vốn: ${(netRevenue > 0 ? totals.totalCOGS / netRevenue * 100 : 0).toFixed(2)}%
-            - Tỷ lệ Chi phí hoạt động: ${(netRevenue > 0 ? (totals.totalSellingCost + totals.totalGaCost) / netRevenue * 100 : 0).toFixed(2)}%
-          - **Số lượng sản phẩm trong kế hoạch:** ${items.length}
+          **DỮ LIỆU CHI TIẾT - MẢNG NHẬP KHẨU (${importItems.length} sản phẩm):**
+          - Doanh thu: ${formatCurrency(importTotals.totalRevenue)} VND
+          - Giá vốn hàng bán: ${formatCurrency(importTotals.totalCOGS)} VND
+          - Lợi nhuận gộp: ${formatCurrency(importTotals.grossProfit)} VND
+          - Tỷ suất LN Gộp: ${calcMargin(importTotals.grossProfit, importTotals.totalRevenue)}%
+          - Lợi nhuận ròng: ${formatCurrency(importTotals.netProfit)} VND
+          - Tỷ suất LN Ròng: ${calcMargin(importTotals.netProfit, importTotals.totalRevenue)}%
 
-          **Lưu ý cực kỳ quan trọng về dữ liệu:**
-          Báo cáo này CHỈ cung cấp dữ liệu từ Báo cáo kết quả hoạt động kinh doanh (P&L). Hoàn toàn KHÔNG có dữ liệu từ Bảng cân đối kế toán (Tài sản, Nợ, Vốn chủ sở hữu) hoặc Báo cáo lưu chuyển tiền tệ. Do đó, khi được yêu cầu phân tích các chỉ số như ROE, ROA, P/E, hệ số nợ, khả năng thanh toán, vòng quay vốn, vòng quay hàng tồn kho, bạn PHẢI nêu rõ là không có đủ dữ liệu và phải đưa ra các giả định hợp lý để ước tính và phân tích một cách định tính. Ví dụ: "Giả sử tổng tài sản là X và vốn chủ sở hữu là Y...". Ghi chú rõ ràng về các giả định này.
+          **DỮ LIỆU CHI TIẾT - MẢNG NỘI ĐỊA (${domesticItems.length} sản phẩm):**
+          - Doanh thu: ${formatCurrency(domesticTotals.totalRevenue)} VND
+          - Giá vốn hàng bán: ${formatCurrency(domesticTotals.totalCOGS)} VND
+          - Lợi nhuận gộp: ${formatCurrency(domesticTotals.grossProfit)} VND
+          - Tỷ suất LN Gộp: ${calcMargin(domesticTotals.grossProfit, domesticTotals.totalRevenue)}%
+          - Lợi nhuận ròng: ${formatCurrency(domesticTotals.netProfit)} VND
+          - Tỷ suất LN Ròng: ${calcMargin(domesticTotals.netProfit, domesticTotals.totalRevenue)}%
 
-          **Yêu cầu cấu trúc và nội dung phân tích:**
-          Bản phân tích cần có các mục sau:
-          1.  **Phân tích tổng quan:** Tóm tắt ngắn gọn về doanh nghiệp (ngành thương mại nhập khẩu thực phẩm đông lạnh), lĩnh vực hoạt động và quy mô dựa trên doanh thu.
-          2.  **Đánh giá kết quả kinh doanh:**
-              - Phân tích doanh thu, lợi nhuận gộp, lợi nhuận thuần, chi phí hoạt động và các biên lợi nhuận.
-              - So sánh (ước tính) kết quả hiện tại với các doanh nghiệp cùng ngành thương mại nhập khẩu bán hàng thực phẩm đông lạnh tại Việt Nam.
-          3.  **Phân tích điểm hòa vốn (Break-even Point):**
-              - Ước tính điểm hòa vốn bằng cách phân loại chi phí (giá vốn, chi phí bán hàng...) thành biến phí và định phí. Nêu rõ giả định phân loại của bạn.
-              - Đánh giá mối quan hệ giữa điểm hòa vốn và cấu trúc chi phí của doanh nghiệp.
-              - Nhận xét về mức độ an toàn tài chính và năng lực sinh lợi.
-          4.  **Phân tích các chỉ số tài chính chính (Dựa trên giả định):**
-              - ROE, ROA, EPS, P/E, hệ số nợ/vốn, khả năng thanh toán.
-              - Vòng quay của vốn, vòng quay của hàng tồn kho (dựa trên giả định về thời gian, ví dụ: kế hoạch này cho 1 tháng hay 1 quý).
-              - Tính toán thời gian 1 năm quay được mấy vòng và hiệu quả tỷ lệ % lợi nhuận.
-          5.  **Nhận định và dự báo:**
-              - Đánh giá xu hướng tài chính, các rủi ro và cơ hội tiềm năng của ngành hàng này.
-          6.  **Kết luận:** Tóm tắt sức khỏe tài chính tổng thể và triển vọng tương lai của doanh nghiệp dựa trên kế hoạch này.
+          **YÊU CẦU CẤU TRÚC VÀ NỘI DUNG PHÂN TÍCH:**
+          Trình bày bản phân tích dưới dạng HTML (không bao gồm thẻ body/head) với các mục sau:
 
-          **Yêu cầu trình bày:**
-          - Trả về dưới dạng HTML. Chỉ sử dụng các thẻ sau: \`<h3>\` cho tiêu đề mục, \`<p>\` cho đoạn văn, \`<ul>\`, \`<li>\` cho danh sách, \`<strong>\` để nhấn mạnh, và \`<table>\`, \`<thead>\`, \`<tbody>\`, \`<tr>\`, \`<th>\`, \`<td>\` cho bảng. Không bao gồm thẻ \`<html>\`, \`<body>\` hay \`<head>\`.
-          - Ngôn ngữ chuyên nghiệp, rõ ràng, súc tích và mang phong cách học thuật.
+          1.  **Tổng quan:** Tóm tắt nhanh quy mô kế hoạch và cơ cấu doanh thu (tỷ trọng giữa Nhập khẩu vs Nội địa).
+          2.  **Phân tích So sánh (QUAN TRỌNG NHẤT):**
+              - So sánh Biên lợi nhuận gộp và ròng giữa hai mảng. Mảng nào đang sinh lời tốt hơn trên mỗi đồng doanh thu?
+              - So sánh cấu trúc chi phí. Mảng nhập khẩu thường chịu rủi ro tỷ giá và chi phí kho bãi cao, trong khi nội địa có thể biên mỏng hơn nhưng quay vòng nhanh. Hãy phân tích điều này dựa trên số liệu.
+              - Đánh giá rủi ro: Nhập khẩu (Tỷ giá, vận chuyển quốc tế) vs Nội địa (Biến động giá thị trường, cạnh tranh).
+          3.  **Đánh giá Điểm hòa vốn & An toàn tài chính:**
+              - Ước tính điểm hòa vốn chung.
+              - Nhận xét về khả năng chịu đựng rủi ro của doanh nghiệp với cấu trúc lợi nhuận hiện tại.
+          4.  **Kiến nghị chiến lược:**
+              - Dựa trên sự so sánh trên, doanh nghiệp nên tập trung nguồn lực vào đâu? Có nên mở rộng mảng nào hay tối ưu hóa chi phí mảng nào?
+          5.  **Kết luận:** Đánh giá triển vọng chung của kế hoạch.
+
+          **Lưu ý:**
+          - Dùng thẻ \`<h3>\`, \`<strong>\`, \`<ul>\`, \`<li>\`, \`<table>\` để trình bày đẹp mắt.
+          - Nếu một trong hai mảng không có sản phẩm (doanh thu = 0), hãy bỏ qua phần so sánh chi tiết và tập trung phân tích mảng còn lại, nhưng vẫn đưa ra lời khuyên về việc đa dạng hóa.
+          - Giọng văn chuyên nghiệp, khách quan, sắc sảo.
         `;
 
         setProgress(50);
-        setStatusText('Đang gửi yêu cầu đến AI...');
+        setStatusText('Đang gửi yêu cầu phân tích chuyên sâu...');
 
         const ai = getGeminiClient();
         const response = await ai.models.generateContent({

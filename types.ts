@@ -13,8 +13,12 @@ export interface Product {
 export interface PlanItem extends Product {
   id: string;
   userInput: {
+    type?: 'import' | 'domestic'; // New: Distinguish between import and domestic
+    
     // Pricing
-    priceUSDPerTon: number;
+    priceUSDPerTon: number; // For Import
+    domesticPurchasePriceVNDPerKg?: number; // New: For Domestic (Incl. VAT)
+    
     sellingPriceVNDPerKg: number;
     // Quantity
     quantityInKg: number;
@@ -43,6 +47,9 @@ export interface PlanItem extends Product {
       otherSellingCosts: number;
 
       // Category 3 & 4 are now calculated based on monthly totals
+      
+      // Category 5: Other Expenses (Account 811)
+      otherExpenses: number;
     }
   };
   calculated: {
@@ -50,7 +57,7 @@ export interface PlanItem extends Product {
     importValueUSD?: number;
     priceUSDPerKg?: number;
     priceVNDPerTon?: number; // New for display
-    importValueVND?: number;
+    importValueVND?: number; // Stores the base cost (Purchase Price Excl. VAT)
     importVAT?: number;
     containers?: number;
     outputVAT?: number;
@@ -89,6 +96,9 @@ export interface PlanItem extends Product {
     // Costs Category 4: Financial
     financialValuationCost?: number;
     totalFinancialCost?: number;
+    
+    // Costs Category 5: Other
+    otherExpenses?: number;
 
     // Summaries
     totalCOGS?: number;
@@ -112,7 +122,12 @@ export interface PlanItem extends Product {
 export interface AddProductDetails {
   productCode: string;
   quantityInKg: number;
-  priceUSDPerTon: number;
+  // Import params
+  priceUSDPerTon?: number;
+  // Domestic params
+  type: 'import' | 'domestic';
+  domesticPurchasePriceVNDPerKg?: number;
+  // Common
   sellingPriceVNDPerKg: number;
 }
 

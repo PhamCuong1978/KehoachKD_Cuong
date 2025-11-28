@@ -14,6 +14,8 @@ interface PlanRates {
   totalMonthlyExternalServices: number;
   totalMonthlyOtherCashExpenses: number;
   totalMonthlyFinancialCost: number;
+  totalMonthlyOtherIncome: number;
+  totalMonthlyOtherExpenses: number;
 }
 
 // Constants from user requirements
@@ -78,22 +80,8 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   let vatLoanInterestCost = 0;
 
   if (isDomestic) {
-      // For domestic, we assume loan is on the full purchase amount (incl VAT usually, but let's stick to base + VAT needs logic).
-      // Simplified: Loan on Total Payment (Price Incl VAT)
-      // Usually domestic payment terms vary. Assuming similar logic: First transfer % ? 
-      // Let's reuse the fields but interpret them differently. 
-      // loanFirstTransferUSD -> interpreted as Loan Amount First Transfer in VND if > 1000000? No, let's keep logic simple.
-      // If domestic, we calculate interest on the Total Purchase Price (Incl VAT) for the storage duration
-      // or use the same split logic if user enters data.
-      // For simplicity in this version: Interest on Total Purchase Value (Incl VAT) for Storage Days
-      
       const totalPurchaseValueInclVAT = (userInput.domesticPurchasePriceVNDPerKg || 0) * quantityInKg;
-      
-      // Calculate interest on the whole amount for the storage period (turnover period)
-      // We can reuse loanFirstTransfer fields if we want complex logic, but let's default to simple for domestic
-      // Simple: Total Value * Daily Rate * Days
       importInterestCost = totalPurchaseValueInclVAT * dailyInterestRate * costs.postClearanceStorageDays;
-      
   } else {
       // Import Interest Logic
       loanFirstTransferAmountVND = costs.loanFirstTransferUSD * rates.importRate;
@@ -109,14 +97,14 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   const purchasingServiceFee = containers * costs.purchasingServiceFeeInMillionsPerCont * 1000000;
   const otherInternationalPurchaseCost = costs.otherInternationalCosts;
   
-  const otherExpenses = costs.otherExpenses || 0;
+  // NOTE: otherExpenses and otherIncome are now calculated in PostTotals via allocation.
+  // We initialize them to 0 here to ensure the structure exists.
+  const otherExpenses = 0; 
+  const otherIncome = 0; 
 
   let totalClearanceAndLogisticsCost = 0;
   
   if (isDomestic) {
-      // Domestic: Skip customs, quarantine, container, port storage, general warehouse (usually part of "Kho" but prompt said hide 1.5)
-      // Prompt said: Hide 1.1 -> 1.5. So exclude them from total.
-      // Include: Interest (1.6->1.1), Post Clearance Storage (1.7->1.2), Purchasing (1.8->1.3), Delivery (1.9->1.4), Other (1.10->1.5)
       totalClearanceAndLogisticsCost = 
           importInterestCost + 
           postClearanceStorageCost +
@@ -124,7 +112,6 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
           costs.buyerDeliveryFee + 
           otherInternationalPurchaseCost;
   } else {
-      // Import: Include all
       totalClearanceAndLogisticsCost =
         costs.customsFee + costs.quarantineFee + costs.containerRentalFee + costs.portStorageFee +
         generalWarehouseCost + importInterestCost + postClearanceStorageCost +
@@ -156,6 +143,7 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
     postClearanceStorageCost,
     purchasingServiceFee,
     otherInternationalPurchaseCost,
+    otherIncome,
     otherExpenses,
     sellingPriceExclVAT,
     totalRevenue,
@@ -190,6 +178,10 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
   const allocatedExternalServices = createAllocator(rates.totalMonthlyExternalServices);
   const allocatedOtherCashExpenses = createAllocator(rates.totalMonthlyOtherCashExpenses);
   const allocatedFinancialCost = createAllocator(rates.totalMonthlyFinancialCost);
+  
+  // New Allocation for Other Income and Other Expenses
+  const allocatedOtherIncome = createAllocator(rates.totalMonthlyOtherIncome);
+  const allocatedOtherExpenses = createAllocator(rates.totalMonthlyOtherExpenses);
 
   const totalSellingCost = allocatedSalesSalary + costs.otherSellingCosts;
 
@@ -199,7 +191,8 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
   
   const totalFinancialCost = allocatedFinancialCost;
   
-  const otherExpenses = item.calculated.otherExpenses || 0;
+  const otherExpenses = allocatedOtherExpenses;
+  const otherIncome = allocatedOtherIncome;
 
   // Output VAT is simply Revenue Incl VAT - Revenue Excl VAT
   const outputVAT = (item.calculated.totalRevenueInclVAT ?? 0) - (item.calculated.totalRevenue ?? 0);
@@ -210,7 +203,8 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
   // Total Pre Tax Cost includes: COGS, Operating (Selling + G&A), Financial, and Other (811)
   const totalPreTaxCost = (item.calculated.totalCOGS ?? 0) + totalOperatingCost + totalFinancialCost + otherExpenses;
   
-  const profitBeforeTax = (item.calculated.totalRevenue ?? 0) - totalPreTaxCost;
+  // Profit Before Tax = Revenue + Other Income - Total Cost
+  const profitBeforeTax = (item.calculated.totalRevenue ?? 0) - totalPreTaxCost + otherIncome;
   
   // CHANGED: Removed the check (profitBeforeTax > 0). 
   // Now calculates tax even if profit is negative (representing a tax credit/shield in the context of the whole plan).
@@ -235,6 +229,8 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
     externalServices: allocatedExternalServices,
     otherCashExpenses: allocatedOtherCashExpenses,
     financialValuationCost: allocatedFinancialCost,
+    otherIncome: allocatedOtherIncome, // Updated to allocated value
+    otherExpenses: allocatedOtherExpenses, // Updated to allocated value
     totalSellingCost,
     totalGaCost,
     totalFinancialCost,

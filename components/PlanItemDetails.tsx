@@ -31,6 +31,11 @@ interface PlanItemDetailsProps {
   setTotalMonthlyOtherCashExpenses: (value: number) => void;
   totalMonthlyFinancialCost: number;
   setTotalMonthlyFinancialCost: (value: number) => void;
+  // New props
+  totalMonthlyOtherIncome: number;
+  setTotalMonthlyOtherIncome: (value: number) => void;
+  totalMonthlyOtherExpenses: number;
+  setTotalMonthlyOtherExpenses: (value: number) => void;
 }
 
 export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({ 
@@ -58,7 +63,11 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
     totalMonthlyOtherCashExpenses,
     setTotalMonthlyOtherCashExpenses,
     totalMonthlyFinancialCost,
-    setTotalMonthlyFinancialCost
+    setTotalMonthlyFinancialCost,
+    totalMonthlyOtherIncome,
+    setTotalMonthlyOtherIncome,
+    totalMonthlyOtherExpenses,
+    setTotalMonthlyOtherExpenses
 }) => {
   const { id, userInput, calculated } = item;
   const isDomestic = userInput.type === 'domestic';
@@ -134,7 +143,7 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
 
   return (
     <div className="p-2 bg-white border-t border-gray-200 sticky left-0 w-[95vw] md:static md:w-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
         
         {/* Cột 1: Số lượng & Giá */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
@@ -449,27 +458,52 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
             <AllocatedCostBlock id={`financialCost-${id}`} label="4.1 CP tài sản, định giá" totalMonthlyCost={totalMonthlyFinancialCost} setTotalMonthlyCost={setTotalMonthlyFinancialCost} allocatedCost={calculated.financialValuationCost} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
           </div>
         </div>
-        
-        {/* Cột 6: Chi phí Khác (NEW) */}
+
+        {/* Cột 6: Thu nhập khác (NEW - Allocated) */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
-          <SectionHeader title="5. Chi phí khác" bgClass="bg-purple-100" textClass="text-purple-800" />
+          <SectionHeader title="5. Thu nhập khác" bgClass="bg-emerald-100" textClass="text-emerald-800" />
+          <div className="p-3 space-y-3 flex-1 text-[13px]">
+             <div className="flex justify-between items-center bg-emerald-50 p-2 rounded mb-2">
+              <span className="text-gray-700 font-semibold">Tổng cộng:</span>
+              <span className="font-bold text-emerald-900">{formatCurrency(calculated.otherIncome)}</span>
+            </div>
+            
+            <AllocatedCostBlock 
+                id={`otherIncome-${id}`} 
+                label="5.1 Các khoản thu nhập khác (711)" 
+                totalMonthlyCost={totalMonthlyOtherIncome} 
+                setTotalMonthlyCost={setTotalMonthlyOtherIncome} 
+                allocatedCost={calculated.otherIncome} 
+                totalQuantityInKg={planTotals.totalQuantityInKg} 
+                itemQuantityInKg={userInput.quantityInKg} 
+            />
+             <p className="text-xs text-gray-500 mt-1 italic">
+                (Tự động phân bổ theo sản lượng) Thanh lý tài sản, thu nhập bất thường...
+            </p>
+          </div>
+        </div>
+        
+        {/* Cột 7: Chi phí Khác (Renamed to 6 - Allocated) */}
+        <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
+          <SectionHeader title="6. Chi phí khác" bgClass="bg-purple-100" textClass="text-purple-800" />
           <div className="p-3 space-y-3 flex-1 text-[13px]">
              <div className="flex justify-between items-center bg-purple-50 p-2 rounded mb-2">
               <span className="text-gray-700 font-semibold">Tổng cộng:</span>
-              <span className="font-bold text-purple-900">{formatCurrency(userInput.costs.otherExpenses)}</span>
+              <span className="font-bold text-purple-900">{formatCurrency(calculated.otherExpenses)}</span>
             </div>
             
-            <div className="p-2.5 bg-gray-50 rounded border border-gray-200">
-                <FormattedNumberInput
-                    id={`otherExpenses-${id}`}
-                    label="5.1 Các chi phí khác (811)"
-                    value={userInput.costs.otherExpenses}
-                    onChange={value => updateItem(id, 'costs.otherExpenses', value)}
-                />
-                 <p className="text-xs text-gray-500 mt-1 italic">
-                    Gồm các khoản chi phí không thuộc hoạt động SXKD thông thường (phạt vi phạm, thanh lý tài sản...).
-                </p>
-            </div>
+            <AllocatedCostBlock 
+                id={`otherExpenses-${id}`} 
+                label="6.1 Các chi phí khác (811)" 
+                totalMonthlyCost={totalMonthlyOtherExpenses} 
+                setTotalMonthlyCost={setTotalMonthlyOtherExpenses} 
+                allocatedCost={calculated.otherExpenses} 
+                totalQuantityInKg={planTotals.totalQuantityInKg} 
+                itemQuantityInKg={userInput.quantityInKg} 
+            />
+             <p className="text-xs text-gray-500 mt-1 italic">
+                (Tự động phân bổ theo sản lượng) Phạt vi phạm, thanh lý tài sản...
+            </p>
           </div>
         </div>
 

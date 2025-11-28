@@ -24,6 +24,8 @@ export interface PlanItem extends Product {
     quantityInKg: number;
     
     outputVatRate: number; // New: Thuế suất GTGT bán ra
+    
+    otherIncome: number; // Deprecated in UI, kept for legacy compatibility
 
     // Cost inputs (per product line)
     costs: {
@@ -48,8 +50,8 @@ export interface PlanItem extends Product {
 
       // Category 3 & 4 are now calculated based on monthly totals
       
-      // Category 5: Other Expenses (Account 811)
-      otherExpenses: number;
+      // Category 6: Other Expenses (Account 811)
+      otherExpenses: number; // Deprecated in UI, kept for legacy compatibility
     }
   };
   calculated: {
@@ -97,7 +99,10 @@ export interface PlanItem extends Product {
     financialValuationCost?: number;
     totalFinancialCost?: number;
     
-    // Costs Category 5: Other
+    // Income Category 5: Other Income
+    otherIncome?: number;
+
+    // Costs Category 6: Other
     otherExpenses?: number;
 
     // Summaries
@@ -152,6 +157,8 @@ export interface PlanSettings {
   totalMonthlyExternalServices: number;
   totalMonthlyOtherCashExpenses: number;
   totalMonthlyFinancialCost: number;
+  totalMonthlyOtherIncome: number;
+  totalMonthlyOtherExpenses: number;
 }
 
 export interface SavedPlan {

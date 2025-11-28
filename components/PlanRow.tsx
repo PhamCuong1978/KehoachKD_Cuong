@@ -34,6 +34,11 @@ interface PlanRowProps {
   setTotalMonthlyOtherCashExpenses: (value: number) => void;
   totalMonthlyFinancialCost: number;
   setTotalMonthlyFinancialCost: (value: number) => void;
+  // New props
+  totalMonthlyOtherIncome: number;
+  setTotalMonthlyOtherIncome: (value: number) => void;
+  totalMonthlyOtherExpenses: number;
+  setTotalMonthlyOtherExpenses: (value: number) => void;
 }
 
 export const PlanRow: React.FC<PlanRowProps> = (props) => {
@@ -72,7 +77,8 @@ export const PlanRow: React.FC<PlanRowProps> = (props) => {
         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 align-top">{formatCurrency(calculated.totalSellingCost)}</td>
         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 align-top">{formatCurrency(calculated.totalGaCost)}</td>
         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 align-top">{formatCurrency(calculated.totalFinancialCost)}</td>
-        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 align-top">{formatCurrency(userInput.costs.otherExpenses)}</td>
+        <td className="px-3 py-4 whitespace-nowrap text-sm text-green-600 align-top">{formatCurrency(calculated.otherIncome)}</td>
+        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 align-top">{formatCurrency(calculated.otherExpenses)}</td>
         <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-700 font-medium align-top">{formatCurrency(calculated.profitBeforeTax)}</td>
         <td className="px-3 py-4 whitespace-nowrap text-sm text-red-700 align-top">{formatCurrency(calculated.corporateIncomeTax)}</td>
         <td className={`px-3 py-4 whitespace-nowrap text-sm font-bold align-top ${(calculated.netProfit ?? 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -88,7 +94,7 @@ export const PlanRow: React.FC<PlanRowProps> = (props) => {
       </tr>
       {isExpanded && (
         <tr className="bg-gray-50">
-          <td colSpan={18} className="p-0">
+          <td colSpan={19} className="p-0">
              <PlanItemDetails {...props} />
           </td>
         </tr>

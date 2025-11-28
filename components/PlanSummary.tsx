@@ -16,6 +16,7 @@ export const PlanSummary: React.FC<PlanSummaryProps> = ({ items }) => {
       acc.totalGaCost += item.calculated.totalGaCost || 0;
       acc.totalFinancialCost += item.calculated.totalFinancialCost || 0;
       acc.totalOtherExpenses += item.userInput.costs.otherExpenses || 0;
+      acc.totalOtherIncome += item.userInput.otherIncome || 0;
       acc.totalRevenue += item.calculated.totalRevenue || 0;
       acc.grossProfit += item.calculated.grossProfit || 0;
       acc.profitBeforeTax += item.calculated.profitBeforeTax || 0;
@@ -34,6 +35,7 @@ export const PlanSummary: React.FC<PlanSummaryProps> = ({ items }) => {
       totalGaCost: 0,
       totalFinancialCost: 0,
       totalOtherExpenses: 0,
+      totalOtherIncome: 0,
       totalRevenue: 0,
       grossProfit: 0,
       profitBeforeTax: 0,
@@ -59,6 +61,7 @@ export const PlanSummary: React.FC<PlanSummaryProps> = ({ items }) => {
         <td className="px-3 py-3 text-left text-sm text-gray-700">{formatCurrency(totals.totalSellingCost)}</td>
         <td className="px-3 py-3 text-left text-sm text-gray-700">{formatCurrency(totals.totalGaCost)}</td>
         <td className="px-3 py-3 text-left text-sm text-gray-700">{formatCurrency(totals.totalFinancialCost)}</td>
+        <td className="px-3 py-3 text-left text-sm text-green-600">{formatCurrency(totals.totalOtherIncome)}</td>
         <td className="px-3 py-3 text-left text-sm text-gray-700">{formatCurrency(totals.totalOtherExpenses)}</td>
         <td className="px-3 py-3 text-left text-sm text-purple-800">{formatCurrency(totals.profitBeforeTax)}</td>
         <td className="px-3 py-3 text-left text-sm text-red-800">{formatCurrency(totals.corporateIncomeTax)}</td>

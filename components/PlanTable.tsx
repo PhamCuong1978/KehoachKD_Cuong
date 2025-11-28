@@ -31,10 +31,15 @@ interface PlanTableProps {
   setTotalMonthlyOtherCashExpenses: (value: number) => void;
   totalMonthlyFinancialCost: number;
   setTotalMonthlyFinancialCost: (value: number) => void;
+  // New props for Other Income/Expenses Allocation
+  totalMonthlyOtherIncome: number;
+  setTotalMonthlyOtherIncome: (value: number) => void;
+  totalMonthlyOtherExpenses: number;
+  setTotalMonthlyOtherExpenses: (value: number) => void;
 }
 
 const tableHeaders = [
-  "Sản phẩm", "Doanh thu", "Giá vốn", "CP Vận hành & kho", "Lợi nhuận gộp", "CP Bán hàng", "CP Quản lý", "CP Tài chính", "Chi phí khác",
+  "Sản phẩm", "Doanh thu", "Giá vốn", "CP Vận hành & kho", "Lợi nhuận gộp", "CP Bán hàng", "CP Quản lý", "CP Tài chính", "Thu nhập khác", "Chi phí khác",
   "Lợi nhuận trước thuế", "Thuế TNDN", "Lãi ròng", "Thuế GTGT Mua vào", "Thuế GTGT Bán ra", "Thuế GTGT Phải nộp", "Tổng thuế phải nộp", "Tỷ lệ Lãi ròng/Doanh thu"
 ];
 

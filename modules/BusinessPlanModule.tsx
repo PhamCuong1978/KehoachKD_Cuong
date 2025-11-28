@@ -59,6 +59,10 @@ const BusinessPlanModule: React.FC = () => {
   const [totalMonthlyExternalServices, setTotalMonthlyExternalServices] = useState<number>(1000000);
   const [totalMonthlyOtherCashExpenses, setTotalMonthlyOtherCashExpenses] = useState<number>(1000000);
   const [totalMonthlyFinancialCost, setTotalMonthlyFinancialCost] = useState<number>(0);
+  
+  // New States for Other Income/Expenses Allocation
+  const [totalMonthlyOtherIncome, setTotalMonthlyOtherIncome] = useState<number>(0);
+  const [totalMonthlyOtherExpenses, setTotalMonthlyOtherExpenses] = useState<number>(0);
 
   const [selectedProductCode, setSelectedProductCode] = useState<string>(products.length > 0 ? products[0].code : '');
   const [isAiWidgetOpen, setIsAiWidgetOpen] = useState(false);
@@ -93,6 +97,9 @@ const BusinessPlanModule: React.FC = () => {
         setTotalMonthlyExternalServices(plan.settings.totalMonthlyExternalServices);
         setTotalMonthlyOtherCashExpenses(plan.settings.totalMonthlyOtherCashExpenses);
         setTotalMonthlyFinancialCost(plan.settings.totalMonthlyFinancialCost);
+        // Restore new fields with fallback
+        setTotalMonthlyOtherIncome(plan.settings.totalMonthlyOtherIncome || 0);
+        setTotalMonthlyOtherExpenses(plan.settings.totalMonthlyOtherExpenses || 0);
         
         // Clear the pending load flag
         localStorage.removeItem('pendingLoadPlan');
@@ -128,7 +135,9 @@ const BusinessPlanModule: React.FC = () => {
       totalMonthlyDepreciation,
       totalMonthlyExternalServices,
       totalMonthlyOtherCashExpenses,
-      totalMonthlyFinancialCost
+      totalMonthlyFinancialCost,
+      totalMonthlyOtherIncome,
+      totalMonthlyOtherExpenses
     };
 
     try {
@@ -293,13 +302,15 @@ const BusinessPlanModule: React.FC = () => {
       totalMonthlyExternalServices,
       totalMonthlyOtherCashExpenses,
       totalMonthlyFinancialCost,
+      totalMonthlyOtherIncome,
+      totalMonthlyOtherExpenses,
     });
     setPlanItems(calculatedItems);
   }, [
       uncalculatedPlanItems, exchangeRateImport, exchangeRateTax, salesSalaryRate, totalMonthlyIndirectSalary,
       totalMonthlyRent, totalMonthlyElectricity, totalMonthlyWater, totalMonthlyStationery,
       totalMonthlyDepreciation, totalMonthlyExternalServices, totalMonthlyOtherCashExpenses,
-      totalMonthlyFinancialCost
+      totalMonthlyFinancialCost, totalMonthlyOtherIncome, totalMonthlyOtherExpenses
   ]);
 
   const addProductToPlan = (details: AddProductDetails) => {
@@ -319,6 +330,7 @@ const BusinessPlanModule: React.FC = () => {
             sellingPriceVNDPerKg: details.sellingPriceVNDPerKg,
             quantityInKg: details.quantityInKg,
             outputVatRate: 5, // Default Output VAT Rate (now 5% for all as base, specific for domestic)
+            otherIncome: 0, 
             costs: {
               customsFee: 0,
               quarantineFee: 0,
@@ -449,6 +461,10 @@ const BusinessPlanModule: React.FC = () => {
             setTotalMonthlyOtherCashExpenses={setTotalMonthlyOtherCashExpenses}
             totalMonthlyFinancialCost={totalMonthlyFinancialCost}
             setTotalMonthlyFinancialCost={setTotalMonthlyFinancialCost}
+            totalMonthlyOtherIncome={totalMonthlyOtherIncome}
+            setTotalMonthlyOtherIncome={setTotalMonthlyOtherIncome}
+            totalMonthlyOtherExpenses={totalMonthlyOtherExpenses}
+            setTotalMonthlyOtherExpenses={setTotalMonthlyOtherExpenses}
           />
         ) : (
           <div className="text-center py-16 bg-white rounded-lg shadow-md border border-gray-200">
@@ -528,6 +544,8 @@ const BusinessPlanModule: React.FC = () => {
           setTotalMonthlyExternalServices,
           setTotalMonthlyOtherCashExpenses,
           setTotalMonthlyFinancialCost,
+          setTotalMonthlyOtherIncome,
+          setTotalMonthlyOtherExpenses
         }}
       />
       

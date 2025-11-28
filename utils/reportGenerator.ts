@@ -21,7 +21,9 @@ const calculateTotals = (items: PlanItem[]) => {
       acc.importInterestCost += item.calculated.importInterestCost || 0;
       acc.totalCOGS += item.calculated.totalCOGS || 0;
       acc.totalTaxPayable += item.calculated.totalTaxPayable || 0;
-      acc.totalOtherExpenses += item.userInput.costs.otherExpenses || 0; // New accumulator
+      // Updated to use calculated values (allocated) instead of userInput
+      acc.totalOtherExpenses += item.calculated.otherExpenses || 0;
+      acc.totalOtherIncome += item.calculated.otherIncome || 0; 
       return acc;
     },
     {
@@ -42,6 +44,7 @@ const calculateTotals = (items: PlanItem[]) => {
       totalCOGS: 0,
       totalTaxPayable: 0,
       totalOtherExpenses: 0,
+      totalOtherIncome: 0,
     }
   );
 };
@@ -78,8 +81,8 @@ const calculateDetailedCosts = (items: PlanItem[]) => {
         // 4. Financial
         acc.financialValuationCost += item.calculated.financialValuationCost || 0; 
         
-        // 5. Other Expenses
-        acc.otherExpenses += item.userInput.costs.otherExpenses || 0;
+        // 6. Other Expenses (Updated to use calculated/allocated value)
+        acc.otherExpenses += item.calculated.otherExpenses || 0;
 
         return acc;
     }, {
@@ -94,7 +97,7 @@ const calculateDetailedCosts = (items: PlanItem[]) => {
         depreciation: 0, externalServices: 0, otherCashExpenses: 0,
         // 4
         financialValuationCost: 0,
-        // 5
+        // 6
         otherExpenses: 0
     });
 
@@ -214,7 +217,7 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
   // Per formula in image: 30 = 20 + (21-22) – 25 – 26
   const netOperatingProfit = grossProfit + (financialIncome - financialCost) - sellingCost - gaCost; // Row 30
 
-  const otherIncome = 0; // Row 31
+  const otherIncome = totals.totalOtherIncome; // Row 31
   const otherCost = details.otherExpenses; // Row 32 (Updated from 0)
   const otherProfit = otherIncome - otherCost; // Row 40
 
@@ -266,8 +269,8 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
             ${createSummaryTableRow('8. Chi phí bán hàng', '25', 'Tổng hợp', sellingCost, netRevenue, false)}
             ${createSummaryTableRow('9. Chi phí quản lý doanh nghiệp', '26', 'Tổng hợp', gaCost, netRevenue, false)}
             ${createSummaryTableRow('10. Lợi nhuận thuần từ hoạt động kinh doanh (30 = 20 + (21 - 22) – 25 – 26)', '30', '[20] + ([21]-[22]) - [25] - [26]', netOperatingProfit, netRevenue, true)}
-            ${createSummaryTableRow('11. Thu nhập khác', '31', '', otherIncome, netRevenue, false)}
-            ${createSummaryTableRow('12. Chi phí khác', '32', '', otherCost, netRevenue, false)}
+            ${createSummaryTableRow('11. Thu nhập khác', '31', 'Tổng hợp', otherIncome, netRevenue, false)}
+            ${createSummaryTableRow('12. Chi phí khác', '32', 'Tổng hợp', otherCost, netRevenue, false)}
             ${createSummaryTableRow('13. Lợi nhuận khác (40 = 31 - 32)', '40', '[31] - [32]', otherProfit, netRevenue, false)}
             ${createSummaryTableRow('14. Tổng lợi nhuận kế toán trước thuế (50 = 30 + 40)', '50', '[30] + [40]', pbt, netRevenue, true)}
             ${createSummaryTableRow('15. Chi phí thuế TNDN hiện hành (20% x 50)', '51', '[50] x 20%', cit, netRevenue, false)}
@@ -394,9 +397,8 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
                     ${createCostTableRow('4', 'Chi phí Tài chính', totals.totalFinancialCost, netRevenue, '', true)}
                     ${createCostTableRow('4.1', 'Chi phí tài sản, định giá...', details.financialValuationCost, netRevenue)}
 
-                    <!-- 5. Chi phí Khác (NEW) -->
-                    ${createCostTableRow('5', 'Chi phí Khác', details.otherExpenses, netRevenue, '', true)}
-                    ${createCostTableRow('5.1', 'Các khoản chi phí khác (811)', details.otherExpenses, netRevenue)}
+                    <!-- 6. Chi phí Khác (NEW) -->
+                    ${createCostTableRow('6', 'Chi phí Khác (811)', details.otherExpenses, netRevenue, '', true)}
                     
                     <!-- TỔNG CỘNG -->
                     <tr class="bg-gray-200 border-t-2 border-gray-300 font-bold">
@@ -417,7 +419,7 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
   `;
 
   const productSummaryTableHeaders = [
-    "Sản phẩm", "Doanh thu", "Giá vốn", "CP Vận hành & kho", "Lợi nhuận gộp", "CP Bán hàng", "CP Quản lý", "CP Tài chính", "Chi phí khác",
+    "Sản phẩm", "Doanh thu", "Giá vốn", "CP Vận hành & kho", "Lợi nhuận gộp", "CP Bán hàng", "CP Quản lý", "CP Tài chính", "Thu nhập khác", "Chi phí khác",
     "Lợi nhuận trước thuế", "Thuế TNDN", "Lãi ròng", "Thuế GTGT Mua vào", "Thuế GTGT Bán ra", "Thuế GTGT Phải nộp", "Tổng thuế phải nộp", "Tỷ lệ Lãi ròng"
   ];
 
@@ -447,7 +449,8 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700 text-right">${formatCurrency(item.calculated.totalSellingCost)}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700 text-right">${formatCurrency(item.calculated.totalGaCost)}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700 text-right">${formatCurrency(item.calculated.totalFinancialCost)}</td>
-                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700 text-right">${formatCurrency(item.userInput.costs.otherExpenses)}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-green-600 text-right">${formatCurrency(item.calculated.otherIncome)}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700 text-right">${formatCurrency(item.calculated.otherExpenses)}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-purple-700 font-medium text-right">${formatCurrency(item.calculated.profitBeforeTax)}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-red-700 text-right">${formatCurrency(item.calculated.corporateIncomeTax)}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm font-bold text-right ${item.calculated.netProfit && item.calculated.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(item.calculated.netProfit)}</td>
@@ -469,6 +472,7 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
                         <td class="px-3 py-3 text-right text-sm text-gray-700">${formatCurrency(totals.totalSellingCost)}</td>
                         <td class="px-3 py-3 text-right text-sm text-gray-700">${formatCurrency(totals.totalGaCost)}</td>
                         <td class="px-3 py-3 text-right text-sm text-gray-700">${formatCurrency(totals.totalFinancialCost)}</td>
+                        <td class="px-3 py-3 text-right text-sm text-green-600">${formatCurrency(totals.totalOtherIncome)}</td>
                         <td class="px-3 py-3 text-right text-sm text-gray-700">${formatCurrency(totals.totalOtherExpenses)}</td>
                         <td class="px-3 py-3 text-right text-sm text-purple-800">${formatCurrency(totals.profitBeforeTax)}</td>
                         <td class="px-3 py-3 text-right text-sm text-red-800">${formatCurrency(totals.corporateIncomeTax)}</td>
@@ -566,15 +570,16 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
                   ${createDetailRow('CP Bán hàng', formatCurrency(item.calculated.totalSellingCost))}
                   ${createDetailRow('CP Quản lý DN', formatCurrency(item.calculated.totalGaCost))}
                   ${createDetailRow('CP Tài chính', formatCurrency(item.calculated.totalFinancialCost))}
-                  ${createDetailRow('Chi phí khác', formatCurrency(item.userInput.costs.otherExpenses))}
-                  ${createBoldDetailRow('Tổng chi phí', formatCurrency((item.calculated.totalOperatingCost || 0) + (item.calculated.totalFinancialCost || 0) + (item.userInput.costs.otherExpenses || 0)))}
+                  ${createDetailRow('Chi phí khác', formatCurrency(item.calculated.otherExpenses))}
+                  ${createBoldDetailRow('Tổng chi phí', formatCurrency((item.calculated.totalOperatingCost || 0) + (item.calculated.totalFinancialCost || 0) + (item.calculated.otherExpenses || 0)))}
               </div>
               <div>
                   <h3 class="font-semibold text-lg pb-2 border-b text-gray-700">Phân tích Lợi nhuận</h3>
                   ${createDetailRow('Doanh thu', formatCurrency(item.calculated.totalRevenue))}
                   ${createDetailRow('Giá vốn hàng bán', `-${formatCurrency(item.calculated.totalCOGS)}`)}
                   ${createBoldDetailRow('Lợi nhuận gộp', formatCurrency(item.calculated.grossProfit))}
-                  ${createDetailRow('Tổng chi phí hoạt động', `-${formatCurrency((item.calculated.totalOperatingCost || 0) + (item.calculated.totalFinancialCost || 0) + (item.userInput.costs.otherExpenses || 0))}`)}
+                  ${createDetailRow('Tổng chi phí hoạt động', `-${formatCurrency((item.calculated.totalOperatingCost || 0) + (item.calculated.totalFinancialCost || 0) + (item.calculated.otherExpenses || 0))}`)}
+                  ${createDetailRow('Thu nhập khác', formatCurrency(item.calculated.otherIncome), true)}
                   ${createBoldDetailRow('Lợi nhuận trước thuế', formatCurrency(item.calculated.profitBeforeTax))}
                   ${createDetailRow('Thuế TNDN (20%)', `-${formatCurrency(item.calculated.corporateIncomeTax)}`)}
                   <div class="mt-2 p-2 rounded-lg bg-green-100">

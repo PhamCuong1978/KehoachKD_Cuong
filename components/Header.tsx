@@ -2,6 +2,9 @@
 import React from 'react';
 import { MenuIcon } from './icons/MenuIcon';
 
+// Cập nhật phiên bản tại đây
+const APP_VERSION = '5.5.0';
+
 interface HeaderProps {
   title: string;
   toggleSidebar: () => void;
@@ -20,7 +23,7 @@ export const Header: React.FC<HeaderProps> = ({ title, toggleSidebar }) => {
           <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{title}</h1>
         </div>
         <div className="flex flex-col items-end">
-          <span className="text-base sm:text-lg font-bold text-gray-700 ml-2 whitespace-nowrap">Version 5.4.8</span>
+          <span className="text-base sm:text-lg font-bold text-gray-700 ml-2 whitespace-nowrap">Version {APP_VERSION}</span>
           <span className="text-xs text-gray-400 italic">{currentDate}</span>
         </div>
       </div>

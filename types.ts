@@ -8,16 +8,17 @@ export interface Product {
   defaultWeightKg: number; // Represents the weight of a standard container for this product
   defaultPriceUSDPerTon: number;
   defaultSellingPriceVND: number;
+  defaultDomesticPurchasePriceVND?: number; // Added for Domestic/Manufacturing products
 }
 
 export interface PlanItem extends Product {
   id: string;
   userInput: {
-    type?: 'import' | 'domestic'; // New: Distinguish between import and domestic
+    type?: 'import' | 'domestic' | 'manufacturing'; // New: Added 'manufacturing'
     
     // Pricing
     priceUSDPerTon: number; // For Import
-    domesticPurchasePriceVNDPerKg?: number; // New: For Domestic (Incl. VAT)
+    domesticPurchasePriceVNDPerKg?: number; // For Domestic (Purchase Price) & Manufacturing (Production Cost)
     
     sellingPriceVNDPerKg: number;
     // Quantity
@@ -129,8 +130,8 @@ export interface AddProductDetails {
   quantityInKg: number;
   // Import params
   priceUSDPerTon?: number;
-  // Domestic params
-  type: 'import' | 'domestic';
+  // Domestic & Manufacturing params
+  type: 'import' | 'domestic' | 'manufacturing';
   domesticPurchasePriceVNDPerKg?: number;
   // Common
   sellingPriceVNDPerKg: number;

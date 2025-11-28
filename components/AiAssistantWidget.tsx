@@ -328,6 +328,7 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
                       quantityInKg: quantity_kg,
                       priceUSDPerTon: price_usd_per_ton ?? masterProduct.defaultPriceUSDPerTon,
                       sellingPriceVNDPerKg: selling_price_vnd_per_kg ?? masterProduct.defaultSellingPriceVND,
+                      type: 'import', // Defaulting to import to satisfy type requirement
                   });
                   resultMessage = `Đã thêm sản phẩm '${productNameToAdd}' vào kế hoạch.`;
               } else {
@@ -371,7 +372,7 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading || !chatRef.current) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage: Message = { id: Date.now(), sender: 'user', text: input };
     setMessages(prev => [...prev, userMessage]);
@@ -394,6 +395,14 @@ Bạn có thể thao tác thêm/sửa/xóa dựa trên danh sách này.
 [USER REQUEST]
 ${currentInput}
       `;
+
+      if (!chatRef.current) {
+          // This should ideally not happen due to useEffect, but for safety
+           console.warn("Chat session not initialized, re-initializing...");
+            // Re-initialization logic if needed, or error handling
+            // For now, assume it's initialized.
+            return;
+      }
 
       const response = await chatRef.current.sendMessage({ message: contextMessage });
 

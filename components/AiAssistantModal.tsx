@@ -248,6 +248,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                       quantityInKg: quantity_kg,
                       priceUSDPerTon: price_usd_per_ton ?? masterProduct.defaultPriceUSDPerTon,
                       sellingPriceVNDPerKg: selling_price_vnd_per_kg ?? masterProduct.defaultSellingPriceVND,
+                      type: 'import', // Defaulting to import to satisfy type requirement
                   });
                   resultMessage = `Đã thêm sản phẩm '${productNameToAdd}' vào kế hoạch.`;
               } else {

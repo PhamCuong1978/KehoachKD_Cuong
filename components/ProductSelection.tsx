@@ -23,7 +23,7 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
   onAddNewProduct,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [productType, setProductType] = useState<'import' | 'domestic'>('import');
+  const [productType, setProductType] = useState<'import' | 'domestic' | 'manufacturing'>('import');
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery) return products;
@@ -58,8 +58,8 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
       setQuantityInCont('1');
       setPriceUSD(selectedProduct.defaultPriceUSDPerTon);
       setSellingPrice(selectedProduct.defaultSellingPriceVND);
-      // Reset domestic price when product changes
-      setDomesticPriceVND(0);
+      // Set domestic price from default if available, else 0
+      setDomesticPriceVND(selectedProduct.defaultDomesticPurchasePriceVND || 0);
     }
   }, [selectedProduct]);
 
@@ -84,7 +84,7 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
       productCode: selectedProductCode,
       quantityInKg: Number(quantityInKg) || 0,
       priceUSDPerTon: productType === 'import' ? (Number(priceUSD) || 0) : 0,
-      domesticPurchasePriceVNDPerKg: productType === 'domestic' ? (Number(domesticPriceVND) || 0) : 0,
+      domesticPurchasePriceVNDPerKg: productType !== 'import' ? (Number(domesticPriceVND) || 0) : 0,
       sellingPriceVNDPerKg: Number(sellingPrice) || 0,
       type: productType,
     });
@@ -109,10 +109,10 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
             />
             
             {/* Toggle Switch */}
-            <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-lg">
+            <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-lg overflow-x-auto">
                 <button
                     onClick={() => setProductType('import')}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                         productType === 'import' 
                         ? 'bg-white text-indigo-600 shadow-sm' 
                         : 'text-gray-500 hover:text-gray-700'
@@ -122,13 +122,23 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
                 </button>
                 <button
                     onClick={() => setProductType('domestic')}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                         productType === 'domestic' 
                         ? 'bg-white text-teal-600 shadow-sm' 
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
                     Trong nước
+                </button>
+                <button
+                    onClick={() => setProductType('manufacturing')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
+                        productType === 'manufacturing' 
+                        ? 'bg-white text-amber-600 shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    Sản xuất Thủy Sản
                 </button>
             </div>
         </div>
@@ -167,7 +177,14 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
           {productType === 'import' ? (
              <FormattedNumberInput id="price-usd" label="Giá nhập (USD/Tấn)" value={priceUSD} onChange={setPriceUSD} decimalPlaces={2} enableVoice />
           ) : (
-             <FormattedNumberInput id="domestic-price-vnd" label="Giá mua trong nước (VNĐ/kg)" value={domesticPriceVND} onChange={setDomesticPriceVND} addon="Có VAT" enableVoice />
+             <FormattedNumberInput 
+                id="domestic-price-vnd" 
+                label={productType === 'manufacturing' ? "Giá mua nguyên liệu (VNĐ/kg)" : "Giá mua trong nước (VNĐ/kg)"} 
+                value={domesticPriceVND} 
+                onChange={setDomesticPriceVND} 
+                addon={productType === 'manufacturing' ? undefined : "Có VAT"} 
+                enableVoice 
+             />
           )}
           
           <FormattedNumberInput id="selling-price-vnd" label="Giá bán (VND/KG)" value={sellingPrice} onChange={setSellingPrice} enableVoice />

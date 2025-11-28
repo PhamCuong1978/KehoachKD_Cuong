@@ -70,7 +70,8 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
     setTotalMonthlyOtherExpenses
 }) => {
   const { id, userInput, calculated } = item;
-  const isDomestic = userInput.type === 'domestic';
+  const isImport = userInput.type !== 'domestic' && userInput.type !== 'manufacturing';
+  const isManufacturing = userInput.type === 'manufacturing';
   
   // Tăng kích thước chữ lên 13px và padding cho touch target
   const DetailRow = ({ label, value, highlight = false, subText = '' }: { label: string, value: string | number, highlight?: boolean, subText?: string }) => (
@@ -141,17 +142,34 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
       </h4>
   );
 
+  const getTypeLabel = () => {
+      if (userInput.type === 'manufacturing') return 'Sản xuất Thủy Sản';
+      if (userInput.type === 'domestic') return 'Hàng Nội địa';
+      return 'Hàng Nhập khẩu';
+  }
+
+  const getTypeColorClass = () => {
+      if (userInput.type === 'manufacturing') return 'bg-amber-100 text-amber-800';
+      if (userInput.type === 'domestic') return 'bg-teal-100 text-teal-800';
+      return 'bg-indigo-100 text-indigo-800';
+  }
+
   return (
     <div className="p-2 bg-white border-t border-gray-200 sticky left-0 w-[95vw] md:static md:w-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
+      {/* 
+        Conditional Grid: 
+        - 8 columns for Manufacturing (Added '1. Định mức')
+        - 7 columns for Import/Domestic (Original)
+      */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${isManufacturing ? 'xl:grid-cols-8' : 'xl:grid-cols-7'} gap-3`}>
         
-        {/* Cột 1: Số lượng & Giá */}
+        {/* Cột 1: Số lượng & Giá (Shared) */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
           <SectionHeader title="Số lượng & Giá" bgClass="bg-blue-100" textClass="text-blue-800" />
           <div className="p-3 space-y-3 flex-1 text-[13px]">
             <div className="flex items-center justify-between mb-2">
-                <span className={`text-xs font-bold px-2 py-1 rounded ${isDomestic ? 'bg-teal-100 text-teal-800' : 'bg-indigo-100 text-indigo-800'}`}>
-                    {isDomestic ? 'Hàng Nội địa' : 'Hàng Nhập khẩu'}
+                <span className={`text-xs font-bold px-2 py-1 rounded ${getTypeColorClass()}`}>
+                    {getTypeLabel()}
                 </span>
             </div>
             <FormattedNumberInput
@@ -162,7 +180,7 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
                 addon={<span>~{calculated.containers?.toFixed(2)}c</span>}
             />
 
-            {!isDomestic ? (
+            {isImport ? (
                 <>
                     <FormattedNumberInput
                         id={`priceUSD-${id}`}
@@ -176,14 +194,14 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
             ) : (
                 <FormattedNumberInput
                     id={`domesticPrice-${id}`}
-                    label="2. Giá mua trong nước (VNĐ/kg)"
+                    label={isManufacturing ? "2. Giá mua nguyên liệu (VNĐ/kg)" : "2. Giá mua trong nước (VNĐ/kg)"}
                     value={userInput.domesticPurchasePriceVNDPerKg || 0}
                     onChange={(value) => updateItem(id, 'domesticPurchasePriceVNDPerKg', value)}
-                    addon="Có VAT"
+                    addon={isManufacturing ? undefined : "Có VAT"}
                 />
             )}
             
-            {!isDomestic ? (
+            {isImport ? (
                  <HighlightBlock 
                     label="3. Tổng giá mua (Chưa VAT)"
                     value={formatCurrency(calculated.importValueVND)} 
@@ -192,10 +210,10 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
                 />
             ) : (
                 <div className="p-2.5 rounded border bg-orange-50 border-orange-200 mt-1 mb-1 shadow-sm">
-                    <div className="text-[13px] font-bold text-gray-700 mb-1 uppercase tracking-wide">3. Chi tiết giá mua</div>
+                    <div className="text-[13px] font-bold text-gray-700 mb-1 uppercase tracking-wide">3. Chi tiết giá</div>
                     <div className="space-y-1">
                         <div className="flex justify-between items-center text-[13px]">
-                            <span className="text-gray-600">Giá mua chưa VAT:</span>
+                            <span className="text-gray-600">{isManufacturing ? 'Giá nguyên liệu chưa VAT:' : 'Giá mua chưa VAT:'}</span>
                             <span className="font-bold text-gray-900">{formatCurrency(calculated.importValueVND)}</span>
                         </div>
                         <div className="flex justify-between items-center text-[13px]">
@@ -203,7 +221,7 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
                             <span className="font-bold text-gray-900">{formatCurrency(calculated.importVAT)}</span>
                         </div>
                         <div className="flex justify-between items-center text-[13px] pt-1 border-t border-orange-200 mt-1">
-                            <span className="text-gray-800 font-bold">Tổng tiền trả NCC:</span>
+                            <span className="text-gray-800 font-bold">{isManufacturing ? 'Tổng tiền nguyên liệu:' : 'Tổng tiền trả NCC:'}</span>
                             <span className="font-extrabold text-orange-900 text-base">
                                 {formatCurrency((calculated.importValueVND || 0) + (calculated.importVAT || 0))}
                             </span>
@@ -252,11 +270,25 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
           </div>
         </div>
 
+        {/* Cột MỚI: 1. Định mức sản xuất (Only for Manufacturing) */}
+        {isManufacturing && (
+          <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
+            <SectionHeader title="1. Định mức sản xuất" bgClass="bg-pink-100" textClass="text-pink-800" />
+            <div className="p-3 space-y-3 flex-1 text-[13px] flex items-center justify-center">
+               <div className="text-center">
+                  <p className="text-gray-400 italic mb-2">Thông số định mức</p>
+                  <div className="text-xs text-gray-400 border border-dashed border-gray-300 p-2 rounded">
+                      (Khu vực này dành cho các thông số: Hao hụt, nhân công trực tiếp, vật tư phụ... Tính năng đang cập nhật)
+                  </div>
+               </div>
+            </div>
+          </div>
+        )}
 
-        {/* Cột 2: Chi phí thông quan & kho bãi */}
+        {/* Cột: Chi phí thông quan & kho bãi (Renamed & Renumbered based on Type) */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
           <SectionHeader 
-            title={isDomestic ? "1. CP Mua hàng & Lưu Kho" : "1. CP Thông quan & Kho"} 
+            title={isManufacturing ? "2. Giá thành sản xuất" : (isImport ? "1. CP Thông quan & Kho" : "1. CP Mua hàng & Lưu Kho")} 
             bgClass="bg-teal-100" 
             textClass="text-teal-800" 
           />
@@ -266,8 +298,8 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
               <span className="font-bold text-teal-900">{formatCurrency(calculated.totalClearanceAndLogisticsCost)}</span>
             </div>
             
-            {/* Conditional Rendering for Import vs Domestic */}
-            {!isDomestic ? (
+            {/* Conditional Rendering for Import vs Domestic/Manufacturing */}
+            {isImport ? (
                 <>
                     <FormattedNumberInput id={`customsFee-${id}`} label="1.1 Phí Hải quan" value={userInput.costs.customsFee} onChange={value => updateItem(id, 'costs.customsFee', value)} />
                     <FormattedNumberInput id={`quarantineFee-${id}`} label="1.2 Phí kiểm dịch" value={userInput.costs.quarantineFee} onChange={value => updateItem(id, 'costs.quarantineFee', value)} />
@@ -285,15 +317,23 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
                 </div>
             )}
 
-            {/* Shared Fields (Renumbered for Domestic) */}
+            {/* Shared Fields (Renumbered based on Type) */}
             <div className="p-2.5 bg-gray-50 rounded border border-gray-200">
-               <label className="block font-semibold text-gray-700 mb-2">{isDomestic ? "1.1" : "1.6"} Chi phí lãi vay</label>
+               {/* 
+                 Renumbering Logic:
+                 Import: 1.6, 1.7...
+                 Domestic: 1.1, 1.2...
+                 Manufacturing: 2.1, 2.2... (Since "1. Định mức" took slot 1)
+               */}
+               <label className="block font-semibold text-gray-700 mb-2">
+                   {isManufacturing ? "2.1" : (isImport ? "1.6" : "1.1")} Chi phí lãi vay
+               </label>
                
                <div className="mb-3">
                  <FormattedNumberInput label="1. Lãi suất" id={`loanInterestRate-${id}`} value={userInput.costs.loanInterestRatePerYear} onChange={value => updateItem(id, 'costs.loanInterestRatePerYear', value)} decimalPlaces={2} addon="%/năm" />
                </div>
 
-               {!isDomestic && (
+               {isImport && (
                    <>
                     <div className="space-y-2 mb-3">
                         <p className="text-xs font-semibold text-gray-600 border-b border-gray-300 pb-1">Lần chuyển 1</p>
@@ -328,14 +368,16 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
 
                <div className="mt-2 pt-2 border-t border-gray-300">
                    <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-800 text-sm">{isDomestic ? "Tổng lãi vay" : "8. Tổng lãi vay"}</span>
+                        <span className="font-bold text-gray-800 text-sm">{isImport ? "8. Tổng lãi vay" : "Tổng lãi vay"}</span>
                         <span className="font-extrabold text-indigo-700 text-base">{formatCurrency(calculated.importInterestCost)}</span>
                    </div>
                </div>
             </div>
            
             <div className="p-2.5 bg-gray-50 rounded border border-gray-200">
-               <label className="block font-semibold text-gray-700 mb-1">{isDomestic ? "1.2" : "1.7"} Lưu kho</label>
+               <label className="block font-semibold text-gray-700 mb-1">
+                   {isManufacturing ? "2.2" : (isImport ? "1.7" : "1.2")} Lưu kho
+               </label>
                <div className="flex space-x-2">
                    <FormattedNumberInput srOnlyLabel label="Số ngày" id={`postClearanceStorageDays-${id}`} value={userInput.costs.postClearanceStorageDays} onChange={value => updateItem(id, 'costs.postClearanceStorageDays', value)} addon="ngày" />
                    <FormattedNumberInput srOnlyLabel label="Đơn giá" id={`postClearanceStorageRate-${id}`} value={userInput.costs.postClearanceStorageRatePerKgDay} onChange={value => updateItem(id, 'costs.postClearanceStorageRatePerKgDay', value)} addon="đ/kg" />
@@ -344,7 +386,9 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
             </div>
            
             <div className="p-2.5 bg-gray-50 rounded border border-gray-200">
-               <label className="block font-semibold text-gray-700 mb-1">{isDomestic ? "1.3" : "1.8"} DV mua hàng</label>
+               <label className="block font-semibold text-gray-700 mb-1">
+                   {isManufacturing ? "2.3" : (isImport ? "1.8" : "1.3")} DV mua hàng
+               </label>
                <FormattedNumberInput
                    srOnlyLabel 
                    label="Đơn giá" 
@@ -356,14 +400,28 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
                <DetailRow label="Thành tiền" value={formatCurrency(calculated.purchasingServiceFee)} />
             </div>
            
-            <FormattedNumberInput id={`buyerDeliveryFee-${id}`} label={`${isDomestic ? "1.4" : "1.9"} Vận chuyển`} value={userInput.costs.buyerDeliveryFee} onChange={value => updateItem(id, 'costs.buyerDeliveryFee', value)} />
-            <FormattedNumberInput id={`otherInternationalCosts-${id}`} label={`${isDomestic ? "1.5" : "1.10"} CP khác`} value={userInput.costs.otherInternationalCosts} onChange={value => updateItem(id, 'costs.otherInternationalCosts', value)} />
+            <FormattedNumberInput 
+                id={`buyerDeliveryFee-${id}`} 
+                label={`${isManufacturing ? "2.4" : (isImport ? "1.9" : "1.4")} Vận chuyển`} 
+                value={userInput.costs.buyerDeliveryFee} 
+                onChange={value => updateItem(id, 'costs.buyerDeliveryFee', value)} 
+            />
+            <FormattedNumberInput 
+                id={`otherInternationalCosts-${id}`} 
+                label={`${isManufacturing ? "2.5" : (isImport ? "1.10" : "1.5")} CP khác`} 
+                value={userInput.costs.otherInternationalCosts} 
+                onChange={value => updateItem(id, 'costs.otherInternationalCosts', value)} 
+            />
           </div>
         </div>
 
-        {/* Cột 3: Chi phí Bán hàng */}
+        {/* Cột: Chi phí Bán hàng */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
-          <SectionHeader title="2. Chi phí Bán hàng" bgClass="bg-amber-100" textClass="text-amber-800" />
+          <SectionHeader 
+            title={isManufacturing ? "3. Chi phí Bán hàng" : "2. Chi phí Bán hàng"} 
+            bgClass="bg-amber-100" 
+            textClass="text-amber-800" 
+          />
           <div className="p-3 space-y-3 flex-1 text-[13px]">
              <div className="flex justify-between items-center bg-amber-50 p-2 rounded mb-2">
               <span className="text-gray-700 font-semibold">Tổng cộng:</span>
@@ -371,7 +429,9 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
             </div>
 
             <div className="p-2.5 bg-gray-50 rounded border border-gray-200 space-y-2">
-                <label className="block font-bold text-gray-700">2.1 Lương NV BH</label>
+                <label className="block font-bold text-gray-700">
+                    {isManufacturing ? "3.1" : "2.1"} Lương NV BH
+                </label>
                 <div className="flex justify-between items-center">
                     <label htmlFor={`sales-salary-rate-${id}`} className="text-gray-600">Tỷ lệ (% LN gộp):</label>
                     <div className="w-24">
@@ -392,13 +452,22 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
                 </div>
             </div>
             
-            <FormattedNumberInput id={`otherSellingCosts-${id}`} label="2.2 CP khác tại nơi bán" value={userInput.costs.otherSellingCosts} onChange={value => updateItem(id, 'costs.otherSellingCosts', value)} />
+            <FormattedNumberInput 
+                id={`otherSellingCosts-${id}`} 
+                label={isManufacturing ? "3.2 CP khác tại nơi bán" : "2.2 CP khác tại nơi bán"}
+                value={userInput.costs.otherSellingCosts} 
+                onChange={value => updateItem(id, 'costs.otherSellingCosts', value)} 
+            />
           </div>
         </div>
 
-        {/* Cột 4: Chi phí Quản lý DN */}
+        {/* Cột: Chi phí Quản lý DN */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
-          <SectionHeader title="3. CP Quản lý DN" bgClass="bg-indigo-100" textClass="text-indigo-800" />
+          <SectionHeader 
+            title={isManufacturing ? "4. CP Quản lý DN" : "3. CP Quản lý DN"} 
+            bgClass="bg-indigo-100" 
+            textClass="text-indigo-800" 
+          />
           <div className="p-3 space-y-3 flex-1 text-[13px] overflow-y-auto max-h-[600px] lg:max-h-none">
              <div className="flex justify-between items-center bg-indigo-50 p-2 rounded mb-2">
               <span className="text-gray-700 font-semibold">Tổng cộng:</span>
@@ -406,7 +475,9 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
             </div>
 
             <div className="p-2.5 bg-gray-50 rounded border border-gray-200 space-y-1 mb-2">
-                <label className="block font-bold text-gray-700">3.1 Lương gián tiếp</label>
+                <label className="block font-bold text-gray-700">
+                    {isManufacturing ? "4.1" : "3.1"} Lương gián tiếp
+                </label>
                 <div className="flex justify-between items-center">
                     <label className="text-gray-500 w-1/2">Tổng/tháng:</label>
                     <div className="w-1/2">
@@ -437,31 +508,39 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
                 </div>
             </div>
 
-             <AllocatedCostBlock id={`rent-${id}`} label="3.2 Thuê nhà" totalMonthlyCost={totalMonthlyRent} setTotalMonthlyCost={setTotalMonthlyRent} allocatedCost={calculated.rent} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
-             <AllocatedCostBlock id={`electricity-${id}`} label="3.3 Điện" totalMonthlyCost={totalMonthlyElectricity} setTotalMonthlyCost={setTotalMonthlyElectricity} allocatedCost={calculated.electricity} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
-             <AllocatedCostBlock id={`water-${id}`} label="3.4 Nước" totalMonthlyCost={totalMonthlyWater} setTotalMonthlyCost={setTotalMonthlyWater} allocatedCost={calculated.water} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
-             <AllocatedCostBlock id={`stationery-${id}`} label="3.5 VPP" totalMonthlyCost={totalMonthlyStationery} setTotalMonthlyCost={setTotalMonthlyStationery} allocatedCost={calculated.stationery} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
-             <AllocatedCostBlock id={`depreciation-${id}`} label="3.6 Khấu hao TSCĐ" totalMonthlyCost={totalMonthlyDepreciation} setTotalMonthlyCost={setTotalMonthlyDepreciation} allocatedCost={calculated.depreciation} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
-             <AllocatedCostBlock id={`externalServices-${id}`} label="3.7 Dịch vụ ngoài" totalMonthlyCost={totalMonthlyExternalServices} setTotalMonthlyCost={setTotalMonthlyExternalServices} allocatedCost={calculated.externalServices} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
-             <AllocatedCostBlock id={`otherCashExpenses-${id}`} label="3.8 Tiền khác" totalMonthlyCost={totalMonthlyOtherCashExpenses} setTotalMonthlyCost={setTotalMonthlyOtherCashExpenses} allocatedCost={calculated.otherCashExpenses} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
+             <AllocatedCostBlock id={`rent-${id}`} label={isManufacturing ? "4.2 Thuê nhà" : "3.2 Thuê nhà"} totalMonthlyCost={totalMonthlyRent} setTotalMonthlyCost={setTotalMonthlyRent} allocatedCost={calculated.rent} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
+             <AllocatedCostBlock id={`electricity-${id}`} label={isManufacturing ? "4.3 Điện" : "3.3 Điện"} totalMonthlyCost={totalMonthlyElectricity} setTotalMonthlyCost={setTotalMonthlyElectricity} allocatedCost={calculated.electricity} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
+             <AllocatedCostBlock id={`water-${id}`} label={isManufacturing ? "4.4 Nước" : "3.4 Nước"} totalMonthlyCost={totalMonthlyWater} setTotalMonthlyCost={setTotalMonthlyWater} allocatedCost={calculated.water} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
+             <AllocatedCostBlock id={`stationery-${id}`} label={isManufacturing ? "4.5 VPP" : "3.5 VPP"} totalMonthlyCost={totalMonthlyStationery} setTotalMonthlyCost={setTotalMonthlyStationery} allocatedCost={calculated.stationery} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
+             <AllocatedCostBlock id={`depreciation-${id}`} label={isManufacturing ? "4.6 Khấu hao TSCĐ" : "3.6 Khấu hao TSCĐ"} totalMonthlyCost={totalMonthlyDepreciation} setTotalMonthlyCost={setTotalMonthlyDepreciation} allocatedCost={calculated.depreciation} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
+             <AllocatedCostBlock id={`externalServices-${id}`} label={isManufacturing ? "4.7 Dịch vụ ngoài" : "3.7 Dịch vụ ngoài"} totalMonthlyCost={totalMonthlyExternalServices} setTotalMonthlyCost={setTotalMonthlyExternalServices} allocatedCost={calculated.externalServices} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
+             <AllocatedCostBlock id={`otherCashExpenses-${id}`} label={isManufacturing ? "4.8 Tiền khác" : "3.8 Tiền khác"} totalMonthlyCost={totalMonthlyOtherCashExpenses} setTotalMonthlyCost={setTotalMonthlyOtherCashExpenses} allocatedCost={calculated.otherCashExpenses} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
           </div>
         </div>
 
-        {/* Cột 5: Chi phí Tài chính */}
+        {/* Cột: Chi phí Tài chính */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
-          <SectionHeader title="4. CP Tài chính" bgClass="bg-rose-100" textClass="text-rose-800" />
+          <SectionHeader 
+            title={isManufacturing ? "5. CP Tài chính" : "4. CP Tài chính"} 
+            bgClass="bg-rose-100" 
+            textClass="text-rose-800" 
+          />
           <div className="p-3 space-y-3 flex-1 text-[13px]">
              <div className="flex justify-between items-center bg-rose-50 p-2 rounded mb-2">
               <span className="text-gray-700 font-semibold">Tổng cộng:</span>
               <span className="font-bold text-rose-900">{formatCurrency(calculated.totalFinancialCost)}</span>
             </div>
-            <AllocatedCostBlock id={`financialCost-${id}`} label="4.1 CP tài sản, định giá" totalMonthlyCost={totalMonthlyFinancialCost} setTotalMonthlyCost={setTotalMonthlyFinancialCost} allocatedCost={calculated.financialValuationCost} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
+            <AllocatedCostBlock id={`financialCost-${id}`} label={isManufacturing ? "5.1 CP tài sản, định giá" : "4.1 CP tài sản, định giá"} totalMonthlyCost={totalMonthlyFinancialCost} setTotalMonthlyCost={setTotalMonthlyFinancialCost} allocatedCost={calculated.financialValuationCost} totalQuantityInKg={planTotals.totalQuantityInKg} itemQuantityInKg={userInput.quantityInKg} />
           </div>
         </div>
 
-        {/* Cột 6: Thu nhập khác (NEW - Allocated) */}
+        {/* Cột: Thu nhập khác */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
-          <SectionHeader title="5. Thu nhập khác" bgClass="bg-emerald-100" textClass="text-emerald-800" />
+          <SectionHeader 
+            title={isManufacturing ? "6. Thu nhập khác" : "5. Thu nhập khác"} 
+            bgClass="bg-emerald-100" 
+            textClass="text-emerald-800" 
+          />
           <div className="p-3 space-y-3 flex-1 text-[13px]">
              <div className="flex justify-between items-center bg-emerald-50 p-2 rounded mb-2">
               <span className="text-gray-700 font-semibold">Tổng cộng:</span>
@@ -470,7 +549,7 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
             
             <AllocatedCostBlock 
                 id={`otherIncome-${id}`} 
-                label="5.1 Các khoản thu nhập khác (711)" 
+                label={isManufacturing ? "6.1 Các khoản thu nhập khác (711)" : "5.1 Các khoản thu nhập khác (711)"}
                 totalMonthlyCost={totalMonthlyOtherIncome} 
                 setTotalMonthlyCost={setTotalMonthlyOtherIncome} 
                 allocatedCost={calculated.otherIncome} 
@@ -483,9 +562,13 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
           </div>
         </div>
         
-        {/* Cột 7: Chi phí Khác (Renamed to 6 - Allocated) */}
+        {/* Cột: Chi phí Khác */}
         <div className="flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full">
-          <SectionHeader title="6. Chi phí khác" bgClass="bg-purple-100" textClass="text-purple-800" />
+          <SectionHeader 
+            title={isManufacturing ? "7. Chi phí khác" : "6. Chi phí khác"} 
+            bgClass="bg-purple-100" 
+            textClass="text-purple-800" 
+          />
           <div className="p-3 space-y-3 flex-1 text-[13px]">
              <div className="flex justify-between items-center bg-purple-50 p-2 rounded mb-2">
               <span className="text-gray-700 font-semibold">Tổng cộng:</span>
@@ -494,7 +577,7 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
             
             <AllocatedCostBlock 
                 id={`otherExpenses-${id}`} 
-                label="6.1 Các chi phí khác (811)" 
+                label={isManufacturing ? "7.1 Các chi phí khác (811)" : "6.1 Các chi phí khác (811)"}
                 totalMonthlyCost={totalMonthlyOtherExpenses} 
                 setTotalMonthlyCost={setTotalMonthlyOtherExpenses} 
                 allocatedCost={calculated.otherExpenses} 

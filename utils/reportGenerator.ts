@@ -186,10 +186,13 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
   const totals = calculateTotals(items);
   
   // Calculate specific group totals for comparison
-  const importItems = items.filter(i => i.userInput.type !== 'domestic');
+  const importItems = items.filter(i => i.userInput.type !== 'domestic' && i.userInput.type !== 'manufacturing');
   const domesticItems = items.filter(i => i.userInput.type === 'domestic');
+  const manufacturingItems = items.filter(i => i.userInput.type === 'manufacturing');
+  
   const importTotals = calculateTotals(importItems);
   const domesticTotals = calculateTotals(domesticItems);
+  const manufacturingTotals = calculateTotals(manufacturingItems);
 
   const details = calculateDetailedCosts(items);
   const generationDate = new Date().toLocaleString('vi-VN');
@@ -285,7 +288,7 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
   `;
 
   // Comparison Section Construction
-  const createComparisonRow = (label: string, total: number, imp: number, dom: number, isHeader = false, isPercent = false) => {
+  const createComparisonRow = (label: string, total: number, imp: number, dom: number, mfg: number, isHeader = false, isPercent = false) => {
       const format = (val: number) => isPercent ? `${val.toFixed(2)}%` : formatCurrency(val);
       const cellClass = isHeader ? "font-bold text-gray-800" : "text-gray-700";
       const bgClass = isHeader ? "bg-gray-100" : "bg-white";
@@ -296,6 +299,7 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
             <td class="py-3 px-4 text-right text-sm font-semibold text-indigo-700">${format(total)}</td>
             <td class="py-3 px-4 text-right text-sm text-gray-800">${format(imp)}</td>
             <td class="py-3 px-4 text-right text-sm text-gray-800">${format(dom)}</td>
+            <td class="py-3 px-4 text-right text-sm text-gray-800">${format(mfg)}</td>
         </tr>
       `;
   };
@@ -306,34 +310,35 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
     <div class="mb-12 break-after-page">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">SO SÁNH HIỆU QUẢ KINH DOANH</h1>
-            <p class="text-gray-600">Phân tách: Nhập khẩu vs Nội địa</p>
+            <p class="text-gray-600">Phân tách: Nhập khẩu, Nội địa & Sản xuất</p>
         </div>
         <div class="overflow-x-auto border rounded-lg shadow-sm">
             <table class="min-w-full">
                 <thead class="bg-gray-700 text-white">
                     <tr>
-                        <th class="py-3 px-4 text-left text-sm font-bold uppercase tracking-wider w-1/3">Chỉ tiêu tài chính</th>
+                        <th class="py-3 px-4 text-left text-sm font-bold uppercase tracking-wider w-1/4">Chỉ tiêu tài chính</th>
                         <th class="py-3 px-4 text-right text-sm font-bold uppercase tracking-wider">Toàn công ty</th>
                         <th class="py-3 px-4 text-right text-sm font-bold uppercase tracking-wider">Mảng Nhập khẩu (${importItems.length} SP)</th>
                         <th class="py-3 px-4 text-right text-sm font-bold uppercase tracking-wider">Mảng Nội địa (${domesticItems.length} SP)</th>
+                        <th class="py-3 px-4 text-right text-sm font-bold uppercase tracking-wider">Mảng Sản xuất (${manufacturingItems.length} SP)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${createComparisonRow('1. Doanh thu thuần', totals.totalRevenue, importTotals.totalRevenue, domesticTotals.totalRevenue, true)}
-                    ${createComparisonRow('2. Giá vốn hàng bán', totals.totalCOGS, importTotals.totalCOGS, domesticTotals.totalCOGS)}
-                    ${createComparisonRow('3. Lợi nhuận gộp', totals.grossProfit, importTotals.grossProfit, domesticTotals.grossProfit, true)}
-                    ${createComparisonRow('% Tỷ suất LN Gộp', calcMargin(totals.grossProfit, totals.totalRevenue), calcMargin(importTotals.grossProfit, importTotals.totalRevenue), calcMargin(domesticTotals.grossProfit, domesticTotals.totalRevenue), false, true)}
+                    ${createComparisonRow('1. Doanh thu thuần', totals.totalRevenue, importTotals.totalRevenue, domesticTotals.totalRevenue, manufacturingTotals.totalRevenue, true)}
+                    ${createComparisonRow('2. Giá vốn hàng bán', totals.totalCOGS, importTotals.totalCOGS, domesticTotals.totalCOGS, manufacturingTotals.totalCOGS)}
+                    ${createComparisonRow('3. Lợi nhuận gộp', totals.grossProfit, importTotals.grossProfit, domesticTotals.grossProfit, manufacturingTotals.grossProfit, true)}
+                    ${createComparisonRow('% Tỷ suất LN Gộp', calcMargin(totals.grossProfit, totals.totalRevenue), calcMargin(importTotals.grossProfit, importTotals.totalRevenue), calcMargin(domesticTotals.grossProfit, domesticTotals.totalRevenue), calcMargin(manufacturingTotals.grossProfit, manufacturingTotals.totalRevenue), false, true)}
                     
-                    ${createComparisonRow('4. Chi phí Bán hàng', totals.totalSellingCost, importTotals.totalSellingCost, domesticTotals.totalSellingCost)}
-                    ${createComparisonRow('5. Chi phí Quản lý', totals.totalGaCost, importTotals.totalGaCost, domesticTotals.totalGaCost)}
-                    ${createComparisonRow('6. Chi phí Tài chính', totals.totalFinancialCost, importTotals.totalFinancialCost, domesticTotals.totalFinancialCost)}
+                    ${createComparisonRow('4. Chi phí Bán hàng', totals.totalSellingCost, importTotals.totalSellingCost, domesticTotals.totalSellingCost, manufacturingTotals.totalSellingCost)}
+                    ${createComparisonRow('5. Chi phí Quản lý', totals.totalGaCost, importTotals.totalGaCost, domesticTotals.totalGaCost, manufacturingTotals.totalGaCost)}
+                    ${createComparisonRow('6. Chi phí Tài chính', totals.totalFinancialCost, importTotals.totalFinancialCost, domesticTotals.totalFinancialCost, manufacturingTotals.totalFinancialCost)}
                     
-                    ${createComparisonRow('7. Lợi nhuận ròng', totals.netProfit, importTotals.netProfit, domesticTotals.netProfit, true)}
-                    ${createComparisonRow('% Tỷ suất LN Ròng', calcMargin(totals.netProfit, totals.totalRevenue), calcMargin(importTotals.netProfit, importTotals.totalRevenue), calcMargin(domesticTotals.netProfit, domesticTotals.totalRevenue), false, true)}
+                    ${createComparisonRow('7. Lợi nhuận ròng', totals.netProfit, importTotals.netProfit, domesticTotals.netProfit, manufacturingTotals.netProfit, true)}
+                    ${createComparisonRow('% Tỷ suất LN Ròng', calcMargin(totals.netProfit, totals.totalRevenue), calcMargin(importTotals.netProfit, importTotals.totalRevenue), calcMargin(domesticTotals.netProfit, domesticTotals.totalRevenue), calcMargin(manufacturingTotals.netProfit, manufacturingTotals.totalRevenue), false, true)}
                 </tbody>
             </table>
         </div>
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
              <div class="p-4 bg-blue-50 rounded border border-blue-100">
                 <h4 class="font-bold text-blue-800 mb-2">Mảng Nhập khẩu</h4>
                 <p class="text-sm text-gray-700">Đóng góp <strong>${totals.totalRevenue ? (importTotals.totalRevenue / totals.totalRevenue * 100).toFixed(1) : 0}%</strong> doanh thu và <strong>${totals.netProfit ? (importTotals.netProfit / totals.netProfit * 100).toFixed(1) : 0}%</strong> lợi nhuận ròng.</p>
@@ -341,6 +346,10 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
              <div class="p-4 bg-green-50 rounded border border-green-100">
                 <h4 class="font-bold text-green-800 mb-2">Mảng Nội địa</h4>
                  <p class="text-sm text-gray-700">Đóng góp <strong>${totals.totalRevenue ? (domesticTotals.totalRevenue / totals.totalRevenue * 100).toFixed(1) : 0}%</strong> doanh thu và <strong>${totals.netProfit ? (domesticTotals.netProfit / totals.netProfit * 100).toFixed(1) : 0}%</strong> lợi nhuận ròng.</p>
+             </div>
+             <div class="p-4 bg-amber-50 rounded border border-amber-100">
+                <h4 class="font-bold text-amber-800 mb-2">Mảng Sản xuất</h4>
+                 <p class="text-sm text-gray-700">Đóng góp <strong>${totals.totalRevenue ? (manufacturingTotals.totalRevenue / totals.totalRevenue * 100).toFixed(1) : 0}%</strong> doanh thu và <strong>${totals.netProfit ? (manufacturingTotals.netProfit / totals.netProfit * 100).toFixed(1) : 0}%</strong> lợi nhuận ròng.</p>
              </div>
         </div>
     </div>

@@ -1,3 +1,4 @@
+
 import type { Product } from '../types';
 
 const BEEF_WEIGHT = 28000; // Includes buffalo
@@ -48,6 +49,7 @@ const createProduct = (code: string, nameVI: string, brand: string, group: strin
         defaultWeightKg,
         defaultPriceUSDPerTon,
         defaultSellingPriceVND,
+        defaultDomesticPurchasePriceVND: 0,
     };
 };
 

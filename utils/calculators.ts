@@ -34,7 +34,8 @@ const DIVIDEND_RATE = 0.30;
 function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   const { defaultWeightKg, userInput } = item;
   const { costs, quantityInKg, type = 'import' } = userInput;
-  const isDomestic = type === 'domestic';
+  // Treat Manufacturing same as Domestic for basic calculation structure (using VND base price)
+  const isLocal = type === 'domestic' || type === 'manufacturing';
   
   const importVatRate = (costs.importVatRate || 0) / 100;
   // Use userInput.outputVatRate if present, otherwise fall back to importVatRate (legacy behavior)
@@ -44,13 +45,13 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   
   // --- VALUE CALCULATION ---
   let importValueUSD = 0;
-  let importValueVND = 0; // Represents Base Cost (excl VAT) for Domestic
+  let importValueVND = 0; // Represents Base Cost (excl VAT) for Domestic/Manufacturing
   let importVAT = 0;
   let priceUSDPerKg = 0;
   let priceVNDPerTon = 0;
 
-  if (isDomestic) {
-      // Domestic Calculation
+  if (isLocal) {
+      // Domestic/Manufacturing Calculation
       const domesticPriceInclVAT = userInput.domesticPurchasePriceVNDPerKg || 0;
       const domesticPriceExclVAT = domesticPriceInclVAT / (1 + importVatRate);
       
@@ -79,7 +80,7 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   let loanInterestCostSecondTransfer = 0;
   let vatLoanInterestCost = 0;
 
-  if (isDomestic) {
+  if (isLocal) {
       const totalPurchaseValueInclVAT = (userInput.domesticPurchasePriceVNDPerKg || 0) * quantityInKg;
       importInterestCost = totalPurchaseValueInclVAT * dailyInterestRate * costs.postClearanceStorageDays;
   } else {
@@ -104,7 +105,7 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
 
   let totalClearanceAndLogisticsCost = 0;
   
-  if (isDomestic) {
+  if (isLocal) {
       totalClearanceAndLogisticsCost = 
           importInterestCost + 
           postClearanceStorageCost +

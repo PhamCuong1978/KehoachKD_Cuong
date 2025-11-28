@@ -315,7 +315,7 @@ const BusinessPlanModule: React.FC = () => {
 
   const addProductToPlan = (details: AddProductDetails) => {
     const productToAdd = products.find(p => p.code === details.productCode);
-    const isDomestic = details.type === 'domestic';
+    const isDomesticOrMfg = details.type === 'domestic' || details.type === 'manufacturing';
 
     if (productToAdd) {
       const uniqueId = `${productToAdd.code}-${new Date().getTime()}`;
@@ -342,8 +342,8 @@ const BusinessPlanModule: React.FC = () => {
               loanFirstTransferInterestDays: 30,
               postClearanceStorageDays: 20,
               postClearanceStorageRatePerKgDay: 12, 
-              importVatRate: isDomestic ? 5 : 0, // Default 5% for domestic, 0% for import
-              purchasingServiceFeeInMillionsPerCont: isDomestic ? 0 : 5, // Default 0 for domestic
+              importVatRate: details.type === 'domestic' ? 5 : 0, // Default 5% for domestic, 0% for import and manufacturing
+              purchasingServiceFeeInMillionsPerCont: isDomesticOrMfg ? 0 : 5, // Default 0 for domestic/mfg
               buyerDeliveryFee: 0,
               otherInternationalCosts: 0,
               otherSellingCosts: 0,

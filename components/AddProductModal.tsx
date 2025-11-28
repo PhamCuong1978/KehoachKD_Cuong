@@ -21,6 +21,7 @@ const initialProductState: Omit<Product, 'defaultSellingPriceVND'> & { defaultSe
     defaultWeightKg: 28000,
     defaultPriceUSDPerTon: 4000,
     defaultSellingPriceVND: undefined,
+    defaultDomesticPurchasePriceVND: 0,
 };
 
 
@@ -102,7 +103,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClos
                 onChange={handleInputChange}
                 placeholder="Ví dụ: Thịt trâu"
             />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <FormattedNumberInput
                     id="defaultWeightKg"
                     label="KL mặc định (Kg)/cont"
@@ -115,6 +116,12 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClos
                     value={newProduct.defaultPriceUSDPerTon}
                     onChange={(val) => handleNumberChange('defaultPriceUSDPerTon', val)}
                     decimalPlaces={2}
+                />
+                 <FormattedNumberInput
+                    id="defaultDomesticPurchasePriceVND"
+                    label="Giá mua trong nước (VNĐ/kg)"
+                    value={newProduct.defaultDomesticPurchasePriceVND || 0}
+                    onChange={(val) => handleNumberChange('defaultDomesticPurchasePriceVND', val)}
                 />
                  <FormattedNumberInput
                     id="defaultSellingPriceVND"

@@ -263,7 +263,7 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
             
             ${createSummaryTableRow('4. Giá vốn hàng bán', '11', 'Tổng hợp', cogs, netRevenue, false)}
             ${createSummaryTableRow('- Giá mua hàng NCC', '11a', 'Tổng hợp', importCost, netRevenue, false, true)}
-            ${createSummaryTableRow('- Chi phí thông quan, lãi vay, lưu kho, vận hành', '11b', 'Tổng hợp', logisticsCost, netRevenue, false, true)}
+            ${createSummaryTableRow('- Chi phí thông quan, Sản xuất, lãi vay, lưu kho, vận hành', '11b', 'Tổng hợp', logisticsCost, netRevenue, false, true)}
 
             ${createSummaryTableRow('5. Lợi nhuận gộp về bán hàng và cung cấp dịch vụ (20 = 10 - 11)', '20', '[10] - [11]', grossProfit, netRevenue, true)}
             ${createSummaryTableRow('6. Doanh thu hoạt động tài chính', '21', '', financialIncome, netRevenue, false)}

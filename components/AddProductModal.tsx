@@ -12,7 +12,7 @@ interface AddProductModalProps {
   onSave: (newProduct: Product) => void;
 }
 
-const initialProductState: Omit<Product, 'defaultSellingPriceVND'> & { defaultSellingPriceVND: number | undefined } = {
+const initialProductState: Product = {
     code: '',
     nameVI: '',
     nameEN: '',
@@ -20,13 +20,13 @@ const initialProductState: Omit<Product, 'defaultSellingPriceVND'> & { defaultSe
     group: '',
     defaultWeightKg: 28000,
     defaultPriceUSDPerTon: 4000,
-    defaultSellingPriceVND: undefined,
+    defaultSellingPriceVND: 0,
     defaultDomesticPurchasePriceVND: 0,
 };
 
 
 export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSave }) => {
-  const [newProduct, setNewProduct] = useState<Omit<Product, 'defaultSellingPriceVND'> & { defaultSellingPriceVND: number | undefined }>(initialProductState);
+  const [newProduct, setNewProduct] = useState<Product>(initialProductState);
 
   if (!isOpen) return null;
 
@@ -44,11 +44,9 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClos
       alert('Vui lòng điền đầy đủ các trường bắt buộc: Mã, Tên, Thương hiệu, và Nhóm.');
       return;
     }
-    if(newProduct.defaultSellingPriceVND === undefined) {
-        alert('Vui lòng nhập giá bán mặc định.');
-        return;
-    }
-    onSave(newProduct as Product);
+    
+    // Removed undefined check for selling price to allow 0 (template items)
+    onSave(newProduct);
     setNewProduct(initialProductState); // Reset for next time
   };
 

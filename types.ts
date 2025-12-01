@@ -11,6 +11,13 @@ export interface Product {
   defaultDomesticPurchasePriceVND?: number; // Added for Domestic/Manufacturing products
 }
 
+export interface ManufacturingOutput {
+  id: string; // unique id for list rendering
+  productCode: string; // code from Product list
+  quantity: number;
+  sellingPriceVND: number;
+}
+
 export interface PlanItem extends Product {
   id: string;
   userInput: {
@@ -27,6 +34,37 @@ export interface PlanItem extends Product {
     outputVatRate: number; // New: Thuế suất GTGT bán ra
     
     otherIncome: number; // Deprecated in UI, kept for legacy compatibility
+
+    // New for Manufacturing: List of output products
+    manufacturingOutputs?: ManufacturingOutput[];
+
+    // New for Manufacturing: Production Norms & Costs
+    manufacturingCosts?: {
+        batchNorm: number; // 1. Định mức SX toàn lô
+        // 3. Chiết tính chi phí (VND/kg thành phẩm)
+        laborCost: number;          // 3.1
+        mealCost: number;           // 3.2
+        electricityWaterCost: number; // 3.3
+        additivesCost: number;      // 3.4
+        packagingCost: number;      // 3.5
+        safetyGearCost: number;     // 3.6
+        depreciationCost: number;   // 3.7
+        stationeryCost: number;     // 3.8
+        toolsSuppliesCost: number;  // 3.9
+        insuranceCost: number;      // 3.10
+        documentCost: number;       // 3.11
+        storageCost: number;        // 3.12
+    };
+
+    // New for Manufacturing: By-products Recovery (Section 4)
+    manufacturingByProducts?: {
+        headsBones: { rate: number, price: number }; // 4.1
+        skin: { rate: number, price: number };       // 4.2
+        trimmings: { rate: number, price: number };  // 4.3 Dè cá
+        redMeat: { rate: number, price: number };    // 4.4 Vụn đỏ
+        bulkTrimmings: { rate: number, price: number }; // 4.5 Vụn xô
+        fat: { rate: number, price: number };        // 4.6 Mỡ cá
+    };
 
     // Cost inputs (per product line)
     costs: {
@@ -67,6 +105,20 @@ export interface PlanItem extends Product {
     vatPayable?: number;
     sellingPriceExclVAT?: number;
     totalRevenueInclVAT?: number; // New for display
+
+    // Manufacturing Specifics
+    manufacturingCalculations?: {
+        finishedGoodsQty: number;
+        totalProductionCost: number; // Raw cost before by-product deduction
+        totalManufacturingInvestment?: number; // Total Production Cost + Raw Material Cost (Excl VAT)
+        totalByProductRevenue: number; // New
+        netProductionCost: number; // totalProductionCost - totalByProductRevenue
+        byProductRevenueExclVAT?: number;
+        byProductOutputVAT?: number;
+        totalRevenueExclVAT_All?: number;
+        totalOutputVAT_All?: number;
+        totalRevenueInclVAT_All?: number;
+    };
 
     // Costs Category 1: Clearance & Logistics
     generalWarehouseCost?: number; // New for 1.5

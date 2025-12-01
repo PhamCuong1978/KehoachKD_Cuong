@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import type { PlanItem } from '../types';
+import type { PlanItem, Product } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { TrashIcon } from './icons/TrashIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
@@ -9,7 +9,8 @@ import { PlanItemDetails } from './PlanItemDetails';
 
 interface PlanRowProps {
   item: PlanItem;
-  updateItem: (id: string, field: string, value: number) => void;
+  products: Product[]; // Added prop
+  updateItem: (id: string, field: string, value: any) => void;
   removeItem: (id: string) => void;
   planTotals: { totalGrossProfit: number; totalQuantityInKg: number; };
   salesSalaryRate: number;

@@ -320,6 +320,20 @@ const BusinessPlanModule: React.FC = () => {
     if (productToAdd) {
       const uniqueId = `${productToAdd.code}-${new Date().getTime()}`;
       if (!planItems.some(item => item.id === uniqueId)) {
+        
+        // Initial setup for manufacturing outputs
+        let initialOutputs: any[] = [];
+        if (details.type === 'manufacturing') {
+            initialOutputs = [
+                {
+                    id: Date.now().toString(),
+                    productCode: 'CATRA-FILLET-TRANG-THAISON', // Default Output Product
+                    quantity: details.quantityInKg, // Default quantity = Input quantity (Assuming Norm = 1)
+                    sellingPriceVND: 55000 // Default Selling Price
+                }
+            ];
+        }
+
         const newItem: PlanItem = {
           id: uniqueId,
           ...productToAdd,
@@ -329,8 +343,32 @@ const BusinessPlanModule: React.FC = () => {
             domesticPurchasePriceVNDPerKg: details.domesticPurchasePriceVNDPerKg || 0,
             sellingPriceVNDPerKg: details.sellingPriceVNDPerKg,
             quantityInKg: details.quantityInKg,
-            outputVatRate: 5, // Default Output VAT Rate (now 5% for all as base, specific for domestic)
+            outputVatRate: 5, // Default Output VAT Rate
             otherIncome: 0, 
+            manufacturingOutputs: initialOutputs, 
+            manufacturingCosts: { // Default Production Costs
+                batchNorm: 1, // Default Norm
+                laborCost: 3162,
+                mealCost: 260,
+                electricityWaterCost: 1300,
+                additivesCost: 1439.26,
+                packagingCost: 537.6,
+                safetyGearCost: 52.17,
+                depreciationCost: 0,
+                stationeryCost: 10.58,
+                toolsSuppliesCost: 171.26,
+                insuranceCost: 270.36,
+                documentCost: 152.93,
+                storageCost: 0, // Default Storage Cost to 0 as requested
+            },
+            manufacturingByProducts: { // Updated Default By-Products Rates
+                headsBones: { rate: 42.10, price: 11000 },
+                skin: { rate: 4.50, price: 16000 },
+                trimmings: { rate: 7.50, price: 22000 },
+                redMeat: { rate: 2.00, price: 21000 },
+                bulkTrimmings: { rate: 8.10, price: 18500 },
+                fat: { rate: 0.80, price: 11000 },
+            },
             costs: {
               customsFee: 0,
               quarantineFee: 0,
@@ -340,10 +378,10 @@ const BusinessPlanModule: React.FC = () => {
               loanInterestRatePerYear: 8,
               loanFirstTransferUSD: 10000,
               loanFirstTransferInterestDays: 30,
-              postClearanceStorageDays: 20,
+              postClearanceStorageDays: details.type === 'manufacturing' ? 0 : 20, 
               postClearanceStorageRatePerKgDay: 12, 
-              importVatRate: details.type === 'domestic' ? 5 : 0, // Default 5% for domestic, 0% for import and manufacturing
-              purchasingServiceFeeInMillionsPerCont: isDomesticOrMfg ? 0 : 5, // Default 0 for domestic/mfg
+              importVatRate: details.type === 'domestic' ? 5 : 0, 
+              purchasingServiceFeeInMillionsPerCont: isDomesticOrMfg ? 0 : 5,
               buyerDeliveryFee: 0,
               otherInternationalCosts: 0,
               otherSellingCosts: 0,
@@ -358,7 +396,7 @@ const BusinessPlanModule: React.FC = () => {
     }
   };
 
-  const updatePlanItem = (id: string, field: string, value: number) => {
+  const updatePlanItem = (id: string, field: string, value: any) => {
     setUncalculatedPlanItems(prevItems =>
       prevItems.map(item => {
         if (item.id === id) {
@@ -366,9 +404,24 @@ const BusinessPlanModule: React.FC = () => {
           if (field.startsWith('costs.')) {
             const costField = field.split('.')[1] as keyof PlanItem['userInput']['costs'];
             updatedItem.userInput.costs[costField] = value;
+          } else if (field.startsWith('manufacturingCosts.')) {
+             const costField = field.split('.')[1] as keyof PlanItem['userInput']['manufacturingCosts'];
+             if(updatedItem.userInput.manufacturingCosts) {
+                 updatedItem.userInput.manufacturingCosts[costField] = value;
+             }
+          } else if (field.startsWith('manufacturingByProducts.')) {
+             // Handle nested updates like manufacturingByProducts.headsBones.rate
+             const parts = field.split('.');
+             if (parts.length === 3 && updatedItem.userInput.manufacturingByProducts) {
+                 const key = parts[1] as keyof PlanItem['userInput']['manufacturingByProducts'];
+                 const subKey = parts[2] as 'rate' | 'price';
+                 if (updatedItem.userInput.manufacturingByProducts[key]) {
+                    updatedItem.userInput.manufacturingByProducts[key][subKey] = value;
+                 }
+             }
           } else {
-            const topLevelField = field as keyof Omit<PlanItem['userInput'], 'costs'>;
-            updatedItem.userInput[topLevelField] = value;
+            // @ts-ignore
+            updatedItem.userInput[field] = value;
           }
           
           return updatedItem;
@@ -435,7 +488,8 @@ const BusinessPlanModule: React.FC = () => {
 
         {planItems.length > 0 ? (
           <PlanTable 
-            items={planItems} 
+            items={planItems}
+            products={products}
             updateItem={updatePlanItem} 
             removeItem={removePlanItem} 
             planTotals={planTotals}

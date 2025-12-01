@@ -36,6 +36,7 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   const { costs, quantityInKg, type = 'import' } = userInput;
   // Treat Manufacturing same as Domestic for basic calculation structure (using VND base price)
   const isLocal = type === 'domestic' || type === 'manufacturing';
+  const isManufacturing = type === 'manufacturing';
   
   const importVatRate = (costs.importVatRate || 0) / 100;
   // Use userInput.outputVatRate if present, otherwise fall back to importVatRate (legacy behavior)
@@ -67,7 +68,123 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
       priceVNDPerTon = userInput.priceUSDPerTon * rates.importRate;
   }
 
-  const totalRevenueInclVAT = userInput.sellingPriceVNDPerKg * quantityInKg;
+  // --- MANUFACTURING SPECIFIC CALCULATIONS ---
+  let finishedGoodsQty = 0;
+  let totalProductionCost = 0;
+  let totalManufacturingInvestment = 0;
+  let totalByProductRevenue = 0; // Incl VAT
+  let netProductionCost = 0;
+  
+  // New calculated fields for By-products (Section 9)
+  let byProductRevenueExclVAT = 0;
+  let byProductOutputVAT = 0;
+
+  if (isManufacturing) {
+      const mfgCosts = userInput.manufacturingCosts || {
+          batchNorm: 1,
+          laborCost: 0, mealCost: 0, electricityWaterCost: 0, additivesCost: 0,
+          packagingCost: 0, safetyGearCost: 0, depreciationCost: 0, stationeryCost: 0,
+          toolsSuppliesCost: 0, insuranceCost: 0, documentCost: 0, storageCost: 0
+      };
+
+      // 2. Thành phẩm nhập kho = Tổng số lượng mua vào / Định mức toàn lô
+      // Avoid division by zero
+      const norm = mfgCosts.batchNorm > 0 ? mfgCosts.batchNorm : 1;
+      finishedGoodsQty = quantityInKg / norm;
+
+      // Calculate Direct Production Cost based on Finished Goods Qty
+      const unitCostSum = 
+          mfgCosts.laborCost + 
+          mfgCosts.mealCost + 
+          mfgCosts.electricityWaterCost + 
+          mfgCosts.additivesCost + 
+          mfgCosts.packagingCost + 
+          mfgCosts.safetyGearCost + 
+          mfgCosts.depreciationCost + 
+          mfgCosts.stationeryCost + 
+          mfgCosts.toolsSuppliesCost + 
+          mfgCosts.insuranceCost + 
+          mfgCosts.documentCost + 
+          mfgCosts.storageCost;
+      
+      totalProductionCost = unitCostSum * finishedGoodsQty;
+      
+      // Total Manufacturing Investment (Aggregate for Interest & Summary) = Direct Costs + Material Cost (Excl VAT)
+      totalManufacturingInvestment = totalProductionCost + importValueVND;
+
+      // 4. By-Products Revenue Calculation
+      if (userInput.manufacturingByProducts) {
+          const bp = userInput.manufacturingByProducts;
+          const calcByProduct = (rate: number, price: number) => (quantityInKg * (rate / 100)) * price;
+          
+          totalByProductRevenue = 
+              calcByProduct(bp.headsBones.rate, bp.headsBones.price) +
+              calcByProduct(bp.skin.rate, bp.skin.price) +
+              calcByProduct(bp.trimmings.rate, bp.trimmings.price) +
+              calcByProduct(bp.redMeat.rate, bp.redMeat.price) +
+              calcByProduct(bp.bulkTrimmings.rate, bp.bulkTrimmings.price) +
+              calcByProduct(bp.fat.rate, bp.fat.price);
+          
+          // Calculate By-Product VAT details
+          byProductRevenueExclVAT = totalByProductRevenue / (1 + outputVatRate);
+          byProductOutputVAT = totalByProductRevenue - byProductRevenueExclVAT;
+      }
+      
+      // Net Production Cost (Reducing COGS)
+      // Cost = Material + Direct Costs - ByProduct Revenue
+      netProductionCost = totalProductionCost - totalByProductRevenue;
+  }
+
+  // Revenue Calculation Logic
+  let totalRevenueInclVAT = 0;
+  let totalRevenue = 0; // Excl VAT
+  let sellingPriceExclVAT = 0;
+
+  if (isManufacturing && userInput.manufacturingOutputs && userInput.manufacturingOutputs.length > 0) {
+      // For Manufacturing, sum up all output products: Quantity * Price (Assuming inputs are Incl VAT)
+      totalRevenueInclVAT = userInput.manufacturingOutputs.reduce((sum, output) => {
+          return sum + (output.quantity * output.sellingPriceVND);
+      }, 0);
+      
+      // Calculate Revenue Excl VAT
+      // Default basic revenue calculation
+      const basicRevenueExclVAT = totalRevenueInclVAT / (1 + outputVatRate);
+      
+      // Virtual Selling Price per Kg of Raw Material (for reference/display only)
+      if (quantityInKg > 0) {
+          userInput.sellingPriceVNDPerKg = totalRevenueInclVAT / quantityInKg;
+          sellingPriceExclVAT = basicRevenueExclVAT / quantityInKg;
+      }
+      
+      // For calculation flow, we start with basic, but will override below for "totalRevenue" used in reporting
+      totalRevenue = basicRevenueExclVAT; 
+  } else {
+      // Standard calculation
+      totalRevenueInclVAT = userInput.sellingPriceVNDPerKg * quantityInKg;
+      sellingPriceExclVAT = userInput.sellingPriceVNDPerKg / (1 + outputVatRate);
+      totalRevenue = sellingPriceExclVAT * quantityInKg;
+  }
+
+  // --- TOTAL AGGREGATES FOR SECTION 10 (Manufacturing) ---
+  let totalRevenueExclVAT_All = totalRevenue;
+  let totalOutputVAT_All = 0;
+  let totalRevenueInclVAT_All = totalRevenueInclVAT;
+
+  // Output VAT for main products
+  const mainOutputVAT = totalRevenueInclVAT - totalRevenue;
+
+  if (isManufacturing) {
+      // Add By-products to totals
+      totalRevenueExclVAT_All = totalRevenue + byProductRevenueExclVAT;
+      totalOutputVAT_All = mainOutputVAT + byProductOutputVAT;
+      totalRevenueInclVAT_All = totalRevenueInclVAT + totalByProductRevenue;
+      
+      // *** CRITICAL UPDATE ***
+      // For Manufacturing, the Total Revenue used in the report (Row 01) should be the Aggregate (Main + ByProduct)
+      totalRevenue = totalRevenueExclVAT_All;
+  } else {
+      totalOutputVAT_All = mainOutputVAT;
+  }
 
   // --- COSTS CALCULATION ---
   
@@ -80,7 +197,12 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
   let loanInterestCostSecondTransfer = 0;
   let vatLoanInterestCost = 0;
 
-  if (isLocal) {
+  if (isManufacturing) {
+      // Manufacturing Interest is based on Total Manufacturing Investment (Direct Costs + Material)
+      const principal = totalManufacturingInvestment; 
+      importInterestCost = principal * dailyInterestRate * costs.postClearanceStorageDays;
+  } else if (isLocal) {
+      // Domestic Interest is based on Purchase Value
       const totalPurchaseValueInclVAT = (userInput.domesticPurchasePriceVNDPerKg || 0) * quantityInKg;
       importInterestCost = totalPurchaseValueInclVAT * dailyInterestRate * costs.postClearanceStorageDays;
   } else {
@@ -105,7 +227,18 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
 
   let totalClearanceAndLogisticsCost = 0;
   
-  if (isLocal) {
+  if (isManufacturing) {
+      // *** CRITICAL UPDATE ***
+      // For Manufacturing, this cost bucket (Row 11b in report) must include Direct Production Cost
+      // Formula: Total Production Cost + Interest + Storage + Purchasing Fee + Delivery + Other
+      totalClearanceAndLogisticsCost = 
+          totalProductionCost +
+          importInterestCost + 
+          postClearanceStorageCost +
+          purchasingServiceFee + 
+          costs.buyerDeliveryFee + 
+          otherInternationalPurchaseCost;
+  } else if (isLocal) {
       totalClearanceAndLogisticsCost = 
           importInterestCost + 
           postClearanceStorageCost +
@@ -119,9 +252,15 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
         purchasingServiceFee + costs.buyerDeliveryFee + otherInternationalPurchaseCost;
   }
   
-  const sellingPriceExclVAT = userInput.sellingPriceVNDPerKg / (1 + outputVatRate);
-  const totalRevenue = sellingPriceExclVAT * quantityInKg;
-  const totalCOGS = importValueVND + totalClearanceAndLogisticsCost;
+  let totalCOGS = 0;
+  if (isManufacturing) {
+      // Since Revenue is Gross (Main + ByProduct), COGS must be Gross (Material + Production)
+      // totalClearanceAndLogisticsCost now includes totalProductionCost
+      totalCOGS = importValueVND + totalClearanceAndLogisticsCost;
+  } else {
+      totalCOGS = importValueVND + totalClearanceAndLogisticsCost + netProductionCost; // netProductionCost is 0 for non-mfg
+  }
+  
   const grossProfit = totalRevenue - totalCOGS;
 
   item.calculated = {
@@ -133,6 +272,18 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
     importVAT,
     priceVNDPerTon,
     totalRevenueInclVAT,
+    manufacturingCalculations: {
+        finishedGoodsQty,
+        totalProductionCost,
+        totalManufacturingInvestment,
+        totalByProductRevenue,
+        netProductionCost,
+        byProductRevenueExclVAT, 
+        byProductOutputVAT,      
+        totalRevenueExclVAT_All, 
+        totalOutputVAT_All,      
+        totalRevenueInclVAT_All  
+    },
     totalClearanceAndLogisticsCost,
     generalWarehouseCost,
     importInterestCost,
@@ -195,8 +346,9 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
   const otherExpenses = allocatedOtherExpenses;
   const otherIncome = allocatedOtherIncome;
 
-  // Output VAT is simply Revenue Incl VAT - Revenue Excl VAT
-  const outputVAT = (item.calculated.totalRevenueInclVAT ?? 0) - (item.calculated.totalRevenue ?? 0);
+  // Use the totalOutputVAT calculated in PreTotals (which includes by-products for Mfg)
+  const outputVAT = item.calculated.manufacturingCalculations?.totalOutputVAT_All ?? ((item.calculated.totalRevenueInclVAT ?? 0) - (item.calculated.totalRevenue ?? 0));
+  
   const vatPayable = outputVAT - (item.calculated.importVAT ?? 0);
   const cogsPerKg = quantityInKg > 0 ? (item.calculated.totalCOGS ?? 0) / quantityInKg : 0;
   const totalOperatingCost = totalSellingCost + totalGaCost;
@@ -207,8 +359,6 @@ function calculatePostTotals(item: PlanItem, totals: { totalGrossProfit: number;
   // Profit Before Tax = Revenue + Other Income - Total Cost
   const profitBeforeTax = (item.calculated.totalRevenue ?? 0) - totalPreTaxCost + otherIncome;
   
-  // CHANGED: Removed the check (profitBeforeTax > 0). 
-  // Now calculates tax even if profit is negative (representing a tax credit/shield in the context of the whole plan).
   const corporateIncomeTax = profitBeforeTax * CORP_INCOME_TAX_RATE;
   
   const netProfit = profitBeforeTax - corporateIncomeTax;

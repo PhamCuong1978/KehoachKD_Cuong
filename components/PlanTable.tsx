@@ -1,12 +1,13 @@
 
 import React from 'react';
-import type { PlanItem } from '../types';
+import type { PlanItem, Product } from '../types';
 import { PlanRow } from './PlanRow';
 import { PlanSummary } from './PlanSummary';
 
 interface PlanTableProps {
   items: PlanItem[];
-  updateItem: (id: string, field: string, value: number) => void;
+  products: Product[]; // Added prop
+  updateItem: (id: string, field: string, value: any) => void; // Changed value type to any to support array update
   removeItem: (id: string) => void;
   planTotals: { totalGrossProfit: number; totalQuantityInKg: number; };
   salesSalaryRate: number;

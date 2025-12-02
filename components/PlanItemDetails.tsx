@@ -124,7 +124,7 @@ const ManufacturingOutputsEditor: React.FC<ManufacturingOutputsEditorProps> = ({
     const addOutput = () => {
         const newOutput: ManufacturingOutput = {
             id: Date.now().toString(),
-            productCode: seafoodProducts.length > 0 ? seafoodProducts[0].code : '',
+            productCode: '', // Start empty
             quantity: 0,
             sellingPriceVND: 0
         };
@@ -171,6 +171,7 @@ const ManufacturingOutputsEditor: React.FC<ManufacturingOutputsEditorProps> = ({
                         value={out.productCode}
                         onChange={(e) => updateOutput(out.id, 'productCode', e.target.value)}
                     >
+                        <option value="">-- Chọn sản phẩm --</option>
                         {seafoodProducts.map(p => (
                             <option key={p.code} value={p.code}>{p.nameVI} ({p.code})</option>
                         ))}
@@ -464,7 +465,10 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
             {/* MOVED: By-products Section to Column 1, below item 8 */}
             {isManufacturing && (
                 <div className="mt-2 pt-2 border-t border-dashed border-gray-300">
-                    <div className="font-bold text-gray-700 text-[13px] mb-1">9. Phụ phẩm thu hồi:</div>
+                    <div className="flex justify-between items-center mb-1">
+                        <div className="font-bold text-gray-700 text-[13px]">9. Phụ phẩm thu hồi:</div>
+                        <div className="font-bold text-indigo-700 text-[13px]">{calculated.manufacturingCalculations?.totalByProductRecoveryRate?.toFixed(2)}%</div>
+                    </div>
                     <div className="bg-green-50 rounded border border-green-200 p-2 space-y-1">
                         <div className="flex justify-between text-xs font-semibold text-gray-500 border-b border-green-200 pb-1">
                             <span className="w-3/12">Loại</span>
@@ -514,22 +518,62 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
         {/* Cột MỚI: 1. Định mức sản xuất (Only for Manufacturing) - Widened to 2 cols */}
         {isManufacturing && (
           <div className={`flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full xl:col-span-2`}>
+            {/* ... rest of the column ... */}
+            {/* Skipping full content to save response length, but content is preserved above */}
             <SectionHeader title="1. Định mức sản xuất" bgClass="bg-pink-100" textClass="text-pink-800" />
             <div className="p-3 space-y-2 flex-1 text-[13px] overflow-y-auto max-h-[600px] lg:max-h-none">
                 <FormattedNumberInput
                     id={`batchNorm-${id}`}
-                    label="1. Định mức SX toàn lô"
-                    value={userInput.manufacturingCosts?.batchNorm || 1}
+                    label="1. Định mức SX toàn lô (Tỷ lệ)"
+                    value={userInput.manufacturingCosts?.batchNorm || 1.80}
                     onChange={(val) => updateItem(id, 'manufacturingCosts.batchNorm', val)}
                     decimalPlaces={2}
                 />
                 
-                <div className="p-2 bg-pink-50 rounded border border-pink-200 mb-2">
-                    <DetailRow label="2. Thành phẩm nhập kho" value={formatCurrency(calculated.manufacturingCalculations?.finishedGoodsQty)} />
-                    <div className="text-xs text-gray-500 italic text-right mt-1">= Tổng mua / Định mức</div>
+                {/* NEW: Detailed Norms Section */}
+                <div className="bg-pink-50 p-2 rounded border border-pink-100 mb-2 space-y-2">
+                    <h5 className="font-semibold text-pink-800 text-xs border-b border-pink-200 pb-1 mb-1">Chi tiết định mức (Tỷ lệ)</h5>
+                    <div className="grid grid-cols-2 gap-2">
+                        <FormattedNumberInput
+                            id={`filletNorm-${id}`}
+                            label="Định mức Fillet"
+                            value={userInput.manufacturingCosts?.filletNorm || 1.85}
+                            onChange={(val) => updateItem(id, 'manufacturingCosts.filletNorm', val)}
+                            decimalPlaces={2}
+                        />
+                        <FormattedNumberInput
+                            id={`skinningNorm-${id}`}
+                            label="Định mức Lạng Da"
+                            value={userInput.manufacturingCosts?.skinningNorm || 1.09}
+                            onChange={(val) => updateItem(id, 'manufacturingCosts.skinningNorm', val)}
+                            decimalPlaces={2}
+                        />
+                        <FormattedNumberInput
+                            id={`shapingNorm-${id}`}
+                            label="Định mức Tạo Hình"
+                            value={userInput.manufacturingCosts?.shapingNorm || 1.40}
+                            onChange={(val) => updateItem(id, 'manufacturingCosts.shapingNorm', val)}
+                            decimalPlaces={2}
+                        />
+                        <FormattedNumberInput
+                            id={`weightGain-${id}`}
+                            label="Tăng Trọng"
+                            value={userInput.manufacturingCosts?.weightGain || 0.65}
+                            onChange={(val) => updateItem(id, 'manufacturingCosts.weightGain', val)}
+                            decimalPlaces={2}
+                        />
+                    </div>
                 </div>
 
-                <div className="font-bold text-gray-700 text-[13px] mb-1">3. Chiết tính chi phí SX (cho 1kg TP):</div>
+                <div className="p-2 bg-pink-50 rounded border border-pink-200 mb-2">
+                    <DetailRow label="2. Thành phẩm nhập kho" value={formatCurrency(calculated.manufacturingCalculations?.finishedGoodsQty)} />
+                    <div className="text-xs text-gray-500 italic text-right mt-1">= Tổng mua / Định mức SX toàn lô</div>
+                </div>
+
+                <div className="flex justify-between items-center mb-1">
+                    <div className="font-bold text-gray-700 text-[13px]">3. Chiết tính chi phí SX (cho 1kg TP):</div>
+                    <div className="font-bold text-indigo-700 text-[13px]">{formatCurrency(calculated.manufacturingCalculations?.unitProductionCost)}</div>
+                </div>
                 <div className="bg-gray-50 rounded border border-gray-200 p-2 space-y-1 mb-2">
                     <div className="flex justify-between text-xs font-semibold text-gray-500 border-b border-gray-200 pb-1">
                         <span className="w-5/12">Khoản mục</span>
@@ -565,6 +609,7 @@ export const PlanItemDetails: React.FC<PlanItemDetailsProps> = ({
 
         {/* Cột: Chi phí thông quan & kho bãi (Renamed & Renumbered based on Type) */}
         <div className={`flex flex-col bg-white rounded border border-gray-300 shadow-sm h-full ${isManufacturing ? 'xl:col-span-2' : ''}`}>
+          {/* ... preserved content ... */}
           <SectionHeader 
             title={isManufacturing ? "2. Giá thành sản xuất (Tiếp)" : (isImport ? "1. CP Thông quan & Kho" : "1. CP Mua hàng & Lưu Kho")} 
             bgClass="bg-teal-100" 

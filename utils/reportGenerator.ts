@@ -262,7 +262,7 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
             ${createSummaryTableRow('3. Doanh thu thuần về bán hàng và cung cấp dịch vụ (10 = 01 - 02)', '10', '[01] - [02]', netRevenue, netRevenue, false)}
             
             ${createSummaryTableRow('4. Giá vốn hàng bán', '11', 'Tổng hợp', cogs, netRevenue, false)}
-            ${createSummaryTableRow('- Giá mua hàng NCC', '11a', 'Tổng hợp', importCost, netRevenue, false, true)}
+            ${createSummaryTableRow('- Giá mua hàng NCC (Nguyên liệu)', '11a', 'Tổng hợp', importCost, netRevenue, false, true)}
             ${createSummaryTableRow('- Chi phí thông quan, Sản xuất, lãi vay, lưu kho, vận hành', '11b', 'Tổng hợp', logisticsCost, netRevenue, false, true)}
 
             ${createSummaryTableRow('5. Lợi nhuận gộp về bán hàng và cung cấp dịch vụ (20 = 10 - 11)', '20', '[10] - [11]', grossProfit, netRevenue, true)}
@@ -374,17 +374,17 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
                 </thead>
                 <tbody class="bg-white">
                     <!-- 1. Chi phí Thông quan & Vận hành -->
-                    ${createCostTableRow('1', 'Chi phí Thông quan & Vận hành (Được tính vào giá vốn)', totals.totalClearanceAndLogisticsCost, netRevenue, '', true)}
+                    ${createCostTableRow('1', 'Chi phí Thông quan, Sản xuất & Vận hành (Được tính vào giá vốn)', totals.totalClearanceAndLogisticsCost, netRevenue, '', true)}
                     ${createCostTableRow('1.1', 'Phí Hải quan', details.customsFee, netRevenue)}
                     ${createCostTableRow('1.2', 'Phí kiểm dịch', details.quarantineFee, netRevenue)}
                     ${createCostTableRow('1.3', 'Phí thuê Cont', details.containerRentalFee, netRevenue)}
                     ${createCostTableRow('1.4', 'Phí lưu kho bãi cảng', details.portStorageFee, netRevenue)}
                     ${createCostTableRow('1.5', 'Chi phí chung nhập kho', details.generalWarehouseCost, netRevenue)}
-                    ${createCostTableRow('1.6', 'Lãi vay nhập hàng', details.importInterestCost, netRevenue)}
+                    ${createCostTableRow('1.6', 'Lãi vay nhập hàng & SX', details.importInterestCost, netRevenue)}
                     ${createCostTableRow('1.7', 'Phí lưu kho sau TQ', details.postClearanceStorageCost, netRevenue, `(Lưu kho ~${details.avgStorageDays} ngày)`)}
                     ${createCostTableRow('1.8', 'DV mua hàng', details.purchasingServiceFee, netRevenue)}
                     ${createCostTableRow('1.9', 'Phí VC đến bên mua', details.buyerDeliveryFee, netRevenue)}
-                    ${createCostTableRow('1.10', 'Chi phí khác', details.otherInternationalPurchaseCost, netRevenue)}
+                    ${createCostTableRow('1.10', 'Chi phí khác (bao gồm cả CP Sản xuất)', details.otherInternationalPurchaseCost, netRevenue, 'Bao gồm CP SX trực tiếp nếu là sản xuất')}
 
                     <!-- 2. Chi phí Bán hàng -->
                     ${createCostTableRow('2', 'Chi phí Bán hàng', totals.totalSellingCost, netRevenue, '', true)}
@@ -503,7 +503,98 @@ export const generateHtmlReport = (items: PlanItem[], importRate: number, taxRat
       <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">BÁO CÁO KẾ HOẠCH KINH DOANH CHI TIẾT</h1>
       ${items.map(item => {
         const isDomestic = item.userInput.type === 'domestic';
+        const isManufacturing = item.userInput.type === 'manufacturing';
         
+        if (isManufacturing) {
+            const outputsList = item.userInput.manufacturingOutputs?.map((out, idx) => `
+                <div class="flex justify-between text-xs text-gray-600">
+                    <span>- ${out.productCode || 'SP #' + (idx+1)}</span>
+                    <span>${formatCurrency(out.quantity)} kg x ${formatCurrency(out.sellingPriceVND)}</span>
+                </div>
+            `).join('') || '';
+
+            return `
+            <div class="mb-8 p-6 border rounded-lg break-inside-avoid bg-white shadow-sm">
+               <h2 class="text-2xl font-semibold text-indigo-700 mb-1">${item.group} - ${item.nameVI} (${item.code})</h2>
+               <p class="text-md text-gray-500 mb-6"><strong>Thương hiệu:</strong> ${item.brand} (Sản xuất Thủy Sản)</p>
+
+               <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                 <!-- Column 1: Input & Norms -->
+                 <div class="space-y-4">
+                    <h3 class="font-semibold text-lg pb-2 border-b text-gray-700">Nguyên liệu & Định mức</h3>
+                    ${createDetailRow('1. Số lượng nguyên liệu', formatCurrency(item.userInput.quantityInKg) + ' kg')}
+                    ${createDetailRow('2. Giá mua NL (chưa VAT)', formatCurrency(item.userInput.quantityInKg > 0 ? (item.calculated.importValueVND || 0) / item.userInput.quantityInKg : 0))}
+                    ${createBoldDetailRow('3. Tổng tiền Nguyên liệu', formatCurrency(item.calculated.importValueVND))}
+                    ${createDetailRow('4. Định mức SX toàn lô', (item.userInput.manufacturingCosts?.batchNorm || 0).toFixed(2))}
+                    ${createBoldDetailRow('5. Thành phẩm nhập kho', formatCurrency(item.calculated.manufacturingCalculations?.finishedGoodsQty) + ' kg')}
+                 </div>
+
+                 <!-- Column 2: Production Costs -->
+                 <div class="space-y-4">
+                    <h3 class="font-semibold text-lg pb-2 border-b text-gray-700">Chi phí Sản xuất (Trực tiếp)</h3>
+                    ${createDetailRow('1. Chi phí nhân công', formatCurrency(item.userInput.manufacturingCosts?.laborCost))}
+                    ${createDetailRow('2. Điện, nước, nhiên liệu', formatCurrency(item.userInput.manufacturingCosts?.mealCost))}
+                    ${createDetailRow('3. Điện SX & Nước', formatCurrency(item.userInput.manufacturingCosts?.electricityWaterCost))}
+                    ${createDetailRow('4. Bao bì & Phụ gia', formatCurrency((item.userInput.manufacturingCosts?.additivesCost || 0) + (item.userInput.manufacturingCosts?.packagingCost || 0)))}
+                    ${createDetailRow('5. Khấu hao & Khác', formatCurrency((item.userInput.manufacturingCosts?.depreciationCost || 0) + (item.userInput.manufacturingCosts?.toolsSuppliesCost || 0) + (item.userInput.manufacturingCosts?.storageCost || 0)))}
+                    ${createBoldDetailRow('Tổng CP SX đơn vị', formatCurrency(item.calculated.manufacturingCalculations?.unitProductionCost) + '/kg')}
+                    ${createBoldDetailRow('Tổng CP SX trực tiếp', formatCurrency(item.calculated.manufacturingCalculations?.totalProductionCost))}
+                 </div>
+
+                 <!-- Column 3: Revenue Structure -->
+                 <div class="space-y-4">
+                    <h3 class="font-semibold text-lg pb-2 border-b text-gray-700">Cơ cấu Doanh thu</h3>
+                    <div class="border-b border-dashed border-gray-300 pb-2 mb-2">
+                        <div class="text-sm font-semibold text-gray-700 mb-1">Chi tiết SP đầu ra:</div>
+                        ${outputsList}
+                    </div>
+                    ${createDetailRow('Doanh thu chính (Outputs)', formatCurrency(item.calculated.totalRevenueInclVAT))}
+                    ${createDetailRow('Doanh thu phụ phẩm', formatCurrency(item.calculated.manufacturingCalculations?.totalByProductRevenue))}
+                    ${createBoldDetailRow('Tổng Doanh thu (Gộp)', formatCurrency(item.calculated.manufacturingCalculations?.totalRevenueInclVAT_All))}
+                    <div class="text-xs text-gray-500 italic mt-1 text-right">*Bao gồm VAT</div>
+                    ${createBoldDetailRow('Giá vốn hàng bán (Gross)', formatCurrency(item.calculated.totalCOGS))}
+                 </div>
+               </div>
+
+               <hr class="my-6 border-t-2 rounded"/>
+
+               <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <!-- Operating Costs -->
+                  <div>
+                      <h3 class="font-semibold text-lg pb-2 border-b text-gray-700">Chi phí Vận hành</h3>
+                      ${createDetailRow('CP Thông quan & Kho', formatCurrency((item.calculated.totalClearanceAndLogisticsCost || 0) - (item.calculated.manufacturingCalculations?.totalProductionCost || 0)))}
+                      ${createDetailRow('CP Bán hàng', formatCurrency(item.calculated.totalSellingCost))}
+                      ${createDetailRow('CP Quản lý DN', formatCurrency(item.calculated.totalGaCost))}
+                      ${createDetailRow('CP Tài chính', formatCurrency(item.calculated.totalFinancialCost))}
+                      ${createDetailRow('Chi phí khác', formatCurrency(item.calculated.otherExpenses))}
+                      ${createBoldDetailRow('Tổng CP Vận hành', formatCurrency((item.calculated.totalOperatingCost || 0) + (item.calculated.totalFinancialCost || 0) + (item.calculated.otherExpenses || 0)))}
+                  </div>
+
+                  <!-- Profit Analysis -->
+                  <div>
+                      <h3 class="font-semibold text-lg pb-2 border-b text-gray-700">Kết quả Kinh doanh</h3>
+                      ${createDetailRow('Lợi nhuận gộp', formatCurrency(item.calculated.grossProfit))}
+                      ${createDetailRow('Thu nhập khác', formatCurrency(item.calculated.otherIncome))}
+                      ${createBoldDetailRow('Lợi nhuận trước thuế', formatCurrency(item.calculated.profitBeforeTax))}
+                      ${createDetailRow('Thuế TNDN (20%)', formatCurrency(item.calculated.corporateIncomeTax))}
+                      <div class="mt-2 p-2 rounded-lg bg-green-100">
+                        ${createBoldDetailRow('Lãi ròng (Net Profit)', formatCurrency(item.calculated.netProfit))}
+                        ${createDetailRow('Tỷ suất LN ròng', `${item.calculated.totalRevenue ? ((item.calculated.netProfit || 0) / item.calculated.totalRevenue * 100).toFixed(2) : 0}%`)}
+                      </div>
+                  </div>
+
+                  <!-- Profit Distribution -->
+                   <div>
+                      <h3 class="font-semibold text-lg pb-2 border-b text-gray-700">Phân phối Lợi nhuận</h3>
+                      ${createDetailRow('Trích lập dự phòng (10%)', formatCurrency(item.calculated.retainedForProvision))}
+                      ${createDetailRow('Bổ sung vốn KD (60%)', formatCurrency(item.calculated.retainedForBusiness))}
+                      ${createDetailRow('Chia cổ đông (30%)', formatCurrency(item.calculated.dividends))}
+                  </div>
+               </div>
+            </div>
+            `;
+        }
+
         return `
         <div class="mb-8 p-6 border rounded-lg break-inside-avoid bg-white shadow-sm">
            <h2 class="text-2xl font-semibold text-indigo-700 mb-1">${item.group} - ${item.nameVI} (${item.code})</h2>

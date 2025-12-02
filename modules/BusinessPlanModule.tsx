@@ -327,9 +327,9 @@ const BusinessPlanModule: React.FC = () => {
             initialOutputs = [
                 {
                     id: Date.now().toString(),
-                    productCode: 'CATRA-FILLET-TRANG-THAISON', // Default Output Product
-                    quantity: details.quantityInKg, // Default quantity = Input quantity (Assuming Norm = 1)
-                    sellingPriceVND: 55000 // Default Selling Price
+                    productCode: '', // Empty
+                    quantity: 0, // Empty/Zero
+                    sellingPriceVND: 0 // Empty/Zero
                 }
             ];
         }
@@ -347,7 +347,11 @@ const BusinessPlanModule: React.FC = () => {
             otherIncome: 0, 
             manufacturingOutputs: initialOutputs, 
             manufacturingCosts: { // Default Production Costs
-                batchNorm: 1, // Default Norm
+                batchNorm: 1.80, // Default Norm UPDATED per user request
+                filletNorm: 1.85, // New default
+                skinningNorm: 1.09, // New default
+                shapingNorm: 1.40, // New default
+                weightGain: 0.65, // New default
                 laborCost: 3162,
                 mealCost: 260,
                 electricityWaterCost: 1300,
@@ -359,7 +363,7 @@ const BusinessPlanModule: React.FC = () => {
                 toolsSuppliesCost: 171.26,
                 insuranceCost: 270.36,
                 documentCost: 152.93,
-                storageCost: 0, // Default Storage Cost to 0 as requested
+                storageCost: 105, 
             },
             manufacturingByProducts: { // Updated Default By-Products Rates
                 headsBones: { rate: 42.10, price: 11000 },

@@ -70,9 +70,11 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
 
   // --- MANUFACTURING SPECIFIC CALCULATIONS ---
   let finishedGoodsQty = 0;
+  let unitProductionCost = 0;
   let totalProductionCost = 0;
   let totalManufacturingInvestment = 0;
   let totalByProductRevenue = 0; // Incl VAT
+  let totalByProductRecoveryRate = 0;
   let netProductionCost = 0;
   
   // New calculated fields for By-products (Section 9)
@@ -93,7 +95,7 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
       finishedGoodsQty = quantityInKg / norm;
 
       // Calculate Direct Production Cost based on Finished Goods Qty
-      const unitCostSum = 
+      unitProductionCost = 
           mfgCosts.laborCost + 
           mfgCosts.mealCost + 
           mfgCosts.electricityWaterCost + 
@@ -107,7 +109,7 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
           mfgCosts.documentCost + 
           mfgCosts.storageCost;
       
-      totalProductionCost = unitCostSum * finishedGoodsQty;
+      totalProductionCost = unitProductionCost * finishedGoodsQty;
       
       // Total Manufacturing Investment (Aggregate for Interest & Summary) = Direct Costs + Material Cost (Excl VAT)
       totalManufacturingInvestment = totalProductionCost + importValueVND;
@@ -117,6 +119,14 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
           const bp = userInput.manufacturingByProducts;
           const calcByProduct = (rate: number, price: number) => (quantityInKg * (rate / 100)) * price;
           
+          totalByProductRecoveryRate = 
+              bp.headsBones.rate + 
+              bp.skin.rate + 
+              bp.trimmings.rate + 
+              bp.redMeat.rate + 
+              bp.bulkTrimmings.rate + 
+              bp.fat.rate;
+
           totalByProductRevenue = 
               calcByProduct(bp.headsBones.rate, bp.headsBones.price) +
               calcByProduct(bp.skin.rate, bp.skin.price) +
@@ -274,9 +284,11 @@ function calculatePreTotals(item: PlanItem, rates: PlanRates): PlanItem {
     totalRevenueInclVAT,
     manufacturingCalculations: {
         finishedGoodsQty,
+        unitProductionCost,
         totalProductionCost,
         totalManufacturingInvestment,
         totalByProductRevenue,
+        totalByProductRecoveryRate,
         netProductionCost,
         byProductRevenueExclVAT, 
         byProductOutputVAT,      

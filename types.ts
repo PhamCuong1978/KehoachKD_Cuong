@@ -41,6 +41,13 @@ export interface PlanItem extends Product {
     // New for Manufacturing: Production Norms & Costs
     manufacturingCosts?: {
         batchNorm: number; // 1. Định mức SX toàn lô
+        
+        // Detailed Norms
+        filletNorm?: number;    // Định mức Fillet
+        skinningNorm?: number;  // Định mức Lạng Da
+        shapingNorm?: number;   // Định mức Tạo Hình
+        weightGain?: number;    // Tăng Trọng
+
         // 3. Chiết tính chi phí (VND/kg thành phẩm)
         laborCost: number;          // 3.1
         mealCost: number;           // 3.2
@@ -109,6 +116,8 @@ export interface PlanItem extends Product {
     // Manufacturing Specifics
     manufacturingCalculations?: {
         finishedGoodsQty: number;
+        unitProductionCost: number; // New: Sum of 3.1 to 3.12
+        totalByProductRecoveryRate: number; // New: Sum of percentages in 9.x
         totalProductionCost: number; // Raw cost before by-product deduction
         totalManufacturingInvestment?: number; // Total Production Cost + Raw Material Cost (Excl VAT)
         totalByProductRevenue: number; // New

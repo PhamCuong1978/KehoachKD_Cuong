@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 // Fix: Replaced deprecated 'FunctionCallPart' with 'FunctionCall' from '@google/genai'.
-import { GoogleGenAI, Type, FunctionDeclaration, FunctionCall, Chat } from "@google/genai";
+import { GoogleGenAI, Type, FunctionDeclaration, FunctionCall, Chat, Part } from "@google/genai";
 import type { PlanItem, Product, AddProductDetails } from '../types';
 import { XIcon } from './icons/XIcon';
 import { SendIcon } from './icons/SendIcon';
 import { MicrophoneIcon } from './icons/MicrophoneIcon';
 import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
+import { PaperClipIcon } from './icons/PaperClipIcon';
 import { getGeminiClient } from '../services/geminiService';
 
 interface AiAssistantWidgetProps {
@@ -26,6 +27,7 @@ interface Message {
   id: number;
   sender: 'user' | 'ai' | 'system';
   text: string;
+  attachments?: { type: string; data: string; name: string }[];
 }
 
 // @ts-ignore
@@ -57,6 +59,19 @@ const settingMap: { [key: string]: string } = {
   "chi_phi_tai_chinh": "setTotalMonthlyFinancialCost",
 };
 
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove data:image/png;base64, prefix
+      resolve(result.split(',')[1]);
+    };
+    reader.onerror = error => reject(error);
+  });
+};
+
 export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
   isOpen, onClose, products, planItems, updatePlanItem, removePlanItem, addProductToPlan, setters
 }) => {
@@ -64,14 +79,17 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<Chat | null>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize chat only once
   useEffect(() => {
     if (!chatRef.current) {
-        setMessages([{ id: Date.now(), sender: 'ai', text: 'Em chào anh Cường! Anh muốn gì ở em???' }]);
+        setMessages([{ id: Date.now(), sender: 'ai', text: 'Em chào anh Cường! Anh cần em phân tích gì về kế hoạch kinh doanh này ạ?' }]);
         const ai = getGeminiClient();
         const tools: FunctionDeclaration[] = [
           {
@@ -135,7 +153,8 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
 - You act as a professional assistant to "Anh Cường".
 - The user is creating a business plan for importing and selling frozen food products in Vietnam.
 - The user will give instructions in Vietnamese. You MUST respond in Vietnamese.
-- Your primary goal is to help the user modify their business plan using the provided tools.
+- Your primary goal is to help the user modify their business plan using the provided tools OR analyze the plan/images provided by the user.
+- If the user provides an image, analyze it carefully (e.g., invoices, price lists, competitor plans) and provide insights relevant to their business plan.
 - Maintain context of the conversation. Do not forget what was discussed previously.
 - If the user's request is ambiguous, ask for clarification.
 - Be concise, professional but friendly.`;
@@ -152,16 +171,13 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isOpen]);
+  }, [messages, isOpen, attachments]);
   
   // Click outside to close
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (isOpen && widgetRef.current && !widgetRef.current.contains(event.target as Node)) {
-        // Check if the click was on the toggle button (which is outside this component)
-        // We can check if the target has a specific ID or class if needed, 
-        // but typically the toggle button handler stops propagation.
-        // For now, let's just close it.
+      // Only close if screen is wide enough (desktop), on mobile we rely on the 'X' button
+      if (window.innerWidth >= 640 && isOpen && widgetRef.current && !widgetRef.current.contains(event.target as Node)) {
         onClose();
       }
     };
@@ -179,7 +195,7 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
     recognition.onend = () => setIsListening(false);
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      setInput(transcript);
+      setInput(prev => prev + (prev ? ' ' : '') + transcript);
     };
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
@@ -199,27 +215,50 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
     }
   };
 
+  // --- Handlers for Multimodal Support ---
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    const newFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) newFiles.push(file);
+        }
+    }
+    if (newFiles.length > 0) {
+        setAttachments(prev => [...prev, ...newFiles]);
+        e.preventDefault();
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+          setAttachments(prev => [...prev, ...Array.from(e.target.files || [])]);
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+      setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+  // ----------------------------------------
+
   const findProductInPlan = (name: string): PlanItem | null => {
     const searchTerm = name.toLowerCase().trim();
-    // Prioritize matches that are more specific
     const itemsWithCombinedName = planItems.map(p => ({
         ...p,
         combinedName: `${p.group.toLowerCase()} - ${p.nameVI.toLowerCase()}`.trim()
     }));
 
-    // Exact match on combined name
     const exactCombined = itemsWithCombinedName.find(p => p.combinedName === searchTerm);
     if (exactCombined) return exactCombined;
 
-    // Exact match on just VI name
     const exactVI = planItems.find(p => p.nameVI.toLowerCase().trim() === searchTerm);
     if (exactVI) return exactVI;
 
-    // Partial match on combined name
     const partialCombined = itemsWithCombinedName.find(p => p.combinedName.includes(searchTerm));
     if (partialCombined) return partialCombined;
     
-    // Partial match on just VI name
     const partialVI = planItems.find(p => p.nameVI.toLowerCase().trim().includes(searchTerm));
     return partialVI || null;
   };
@@ -231,24 +270,19 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
         combinedName: `${p.group.toLowerCase()} - ${p.nameVI.toLowerCase()}`.trim()
     }));
 
-    // Exact match on combined name
     const exactCombined = productsWithCombinedName.find(p => p.combinedName === searchTerm);
     if (exactCombined) return exactCombined;
 
-    // Exact match on just VI name
     const exactVI = products.find(p => p.nameVI.toLowerCase().trim() === searchTerm);
     if (exactVI) return exactVI;
     
-    // Partial match on combined name
     const partialCombined = productsWithCombinedName.find(p => p.combinedName.includes(searchTerm));
     if (partialCombined) return partialCombined;
 
-    // Partial match on just VI name
     const partialVI = products.find(p => p.nameVI.toLowerCase().trim().includes(searchTerm));
     return partialVI || null;
   };
 
-  // Fix: Replaced deprecated 'FunctionCallPart' with 'FunctionCall' from '@google/genai'.
   const executeFunctionCalls = (calls: FunctionCall[]) => {
     let systemMessages: string[] = [];
 
@@ -256,7 +290,6 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
         let resultMessage = '';
         switch (fc.name) {
             case 'update_product_property': {
-              // Fix: Cast function call arguments to their expected types to resolve type errors.
               const { product_name, property_name, new_value } = fc.args as { product_name: string; property_name: string; new_value: number };
               const productToUpdate = findProductInPlan(product_name);
               const fieldToUpdate = propertyMap[property_name];
@@ -270,7 +303,6 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
               break;
             }
             case 'bulk_update_products': {
-              // Fix: Cast function call arguments to their expected types to resolve type errors.
               const { filter_property, filter_value, target_property, update_type, update_value } = fc.args as { filter_property: string; filter_value: string; target_property: string; update_type: string; update_value: number };
               const targetField = propertyMap[target_property];
               if (!targetField) {
@@ -319,7 +351,6 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
               break;
             }
             case 'add_product_to_plan': {
-              // Fix: Cast function call arguments to their expected types to resolve type errors.
               const { product_name: productNameToAdd, quantity_kg, price_usd_per_ton, selling_price_vnd_per_kg } = fc.args as { product_name: string; quantity_kg: number; price_usd_per_ton?: number; selling_price_vnd_per_kg?: number };
               const masterProduct = findMasterProduct(productNameToAdd);
               if (masterProduct) {
@@ -328,7 +359,7 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
                       quantityInKg: quantity_kg,
                       priceUSDPerTon: price_usd_per_ton ?? masterProduct.defaultPriceUSDPerTon,
                       sellingPriceVNDPerKg: selling_price_vnd_per_kg ?? masterProduct.defaultSellingPriceVND,
-                      type: 'import', // Defaulting to import to satisfy type requirement
+                      type: 'import',
                   });
                   resultMessage = `Đã thêm sản phẩm '${productNameToAdd}' vào kế hoạch.`;
               } else {
@@ -337,7 +368,6 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
               break;
             }
             case 'update_general_setting': {
-              // Fix: Cast function call arguments to their expected types to resolve type errors.
               const { setting_name, new_value: setting_value } = fc.args as { setting_name: string; new_value: number };
               const setterName = settingMap[setting_name];
               if (setterName && setters[setterName]) {
@@ -349,7 +379,6 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
               break;
             }
             case 'remove_product_from_plan': {
-                // Fix: Cast function call arguments to their expected types to resolve type errors.
                 const { product_name: product_to_remove_name } = fc.args as { product_name: string };
                 const productToRemove = findProductInPlan(product_to_remove_name);
                 if(productToRemove) {
@@ -372,17 +401,27 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && attachments.length === 0) || isLoading) return;
 
-    const userMessage: Message = { id: Date.now(), sender: 'user', text: input };
+    const currentAttachments = [...attachments];
+    const userMessage: Message = { 
+        id: Date.now(), 
+        sender: 'user', 
+        text: input,
+        attachments: currentAttachments.map(f => ({ 
+            type: f.type, 
+            name: f.name, 
+            data: URL.createObjectURL(f) // For local preview
+        }))
+    };
+
     setMessages(prev => [...prev, userMessage]);
     const currentInput = input;
     setInput('');
+    setAttachments([]);
     setIsLoading(true);
 
     try {
-      // INJECT CURRENT PLAN CONTEXT
-      // Instead of resetting the chat, we provide the current plan items as context in the message
       const productSummary = planItems.length > 0 
         ? planItems.map(p => `${p.group} - ${p.nameVI} (${p.brand})`).join(', ')
         : 'Chưa có sản phẩm nào.';
@@ -390,21 +429,35 @@ export const AiAssistantWidget: React.FC<AiAssistantWidgetProps> = ({
       const contextMessage = `
 [SYSTEM CONTEXT - DỮ LIỆU HIỆN TẠI]
 Danh sách sản phẩm đang có trong kế hoạch: ${productSummary}
-Bạn có thể thao tác thêm/sửa/xóa dựa trên danh sách này.
+Bạn có thể thao tác thêm/sửa/xóa dựa trên danh sách này hoặc phân tích thông tin từ ảnh người dùng gửi.
 -----------------------------------
 [USER REQUEST]
 ${currentInput}
       `;
 
       if (!chatRef.current) {
-          // This should ideally not happen due to useEffect, but for safety
            console.warn("Chat session not initialized, re-initializing...");
-            // Re-initialization logic if needed, or error handling
-            // For now, assume it's initialized.
             return;
       }
 
-      const response = await chatRef.current.sendMessage({ message: contextMessage });
+      // Construct message parts (Text + Images)
+      const parts: (string | Part)[] = [{ text: contextMessage }];
+      
+      for (const file of currentAttachments) {
+          try {
+              const base64Data = await fileToBase64(file);
+              parts.push({
+                  inlineData: {
+                      data: base64Data,
+                      mimeType: file.type
+                  }
+              });
+          } catch (e) {
+              console.error("Error processing attachment:", e);
+          }
+      }
+
+      const response = await chatRef.current.sendMessage({ message: parts });
 
       if (response.functionCalls && response.functionCalls.length > 0) {
         executeFunctionCalls(response.functionCalls);
@@ -426,30 +479,46 @@ ${currentInput}
   return (
     <div 
         ref={widgetRef}
-        className="fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 flex flex-col bg-white sm:rounded-xl shadow-2xl border border-gray-200 overflow-hidden w-full sm:w-96 h-[80vh] sm:h-[600px] transition-all transform duration-300 ease-in-out"
-        style={{ maxHeight: 'calc(100vh - 2rem)' }}
+        className="fixed inset-0 sm:bottom-6 sm:right-6 sm:left-auto sm:top-auto z-50 flex flex-col bg-white sm:rounded-2xl shadow-2xl border-0 sm:border border-gray-200 overflow-hidden w-full h-[100dvh] sm:w-[450px] sm:h-[650px] transition-all transform duration-300 ease-in-out"
+        style={{ zIndex: 9999 }}
     >
-        <header className="flex items-center justify-between p-4 bg-blue-600 text-white">
-          <div className="flex items-center space-x-2">
-            <ChatBubbleIcon className="h-6 w-6 text-white" />
+        <header className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm">
+                <ChatBubbleIcon className="h-6 w-6 text-white" />
+            </div>
             <div>
                 <h2 className="text-md font-bold">AI của anh Cường</h2>
-                <p className="text-xs text-blue-100 opacity-90">Trợ lý ảo thông minh</p>
+                <p className="text-xs text-blue-100 opacity-90">Trợ lý ảo đa năng</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-blue-100 hover:text-white transition-colors">
-            <XIcon className="h-6 w-6" />
+          <button onClick={onClose} className="text-blue-100 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1.5 transition-colors">
+            <XIcon className="h-5 w-5" />
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 scroll-smooth">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
-                msg.sender === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 
-                msg.sender === 'ai' ? 'bg-white text-gray-800 border border-gray-200 shadow-sm rounded-tl-none' : 
+              <div className={`max-w-[85%] rounded-2xl p-3 text-sm shadow-sm ${
+                msg.sender === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 
+                msg.sender === 'ai' ? 'bg-white text-gray-800 border border-gray-100 rounded-bl-none' : 
                 'bg-yellow-50 text-yellow-800 border border-yellow-200 text-xs italic w-full text-center'
               }`}>
+                {/* Show attachments for user messages */}
+                {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {msg.attachments.map((att, idx) => (
+                            <img 
+                                key={idx} 
+                                src={att.data} 
+                                alt={att.name} 
+                                className="h-20 w-auto rounded-md object-cover border border-white/30" 
+                            />
+                        ))}
+                    </div>
+                )}
+                
                 {msg.text.split('\n').map((line, index) => <p key={index} className={index > 0 ? 'mt-1' : ''}>{line}</p>)}
               </div>
             </div>
@@ -468,31 +537,72 @@ ${currentInput}
           <div ref={chatEndRef} />
         </main>
 
-        <footer className="p-3 bg-white border-t border-gray-200">
-          <div className="flex items-center space-x-2">
+        <footer className="p-3 bg-white border-t border-gray-200 shrink-0">
+          {/* Attachment Preview Area */}
+          {attachments.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-1">
+                  {attachments.map((file, idx) => (
+                      <div key={idx} className="relative group shrink-0">
+                          <img 
+                              src={URL.createObjectURL(file)} 
+                              alt="preview" 
+                              className="h-16 w-16 object-cover rounded-lg border border-gray-200"
+                          />
+                          <button 
+                              onClick={() => removeAttachment(idx)}
+                              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow hover:bg-red-600"
+                          >
+                              <XIcon className="w-3 h-3" />
+                          </button>
+                      </div>
+                  ))}
+              </div>
+          )}
+
+          <div className="flex items-end space-x-2">
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleFileSelect} 
+                multiple 
+                accept="image/*"
+            />
             <button
-              onClick={handleVoiceInput}
-              disabled={isLoading || !recognition}
-              className={`p-2 rounded-full transition-colors flex-shrink-0 ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'} disabled:opacity-50`}
-              title="Nói để nhập liệu"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors mb-1"
+                title="Đính kèm ảnh"
             >
-              <MicrophoneIcon className="h-5 w-5" />
+                <PaperClipIcon className="h-6 w-6" />
             </button>
-            <div className="flex-1 relative">
+            
+            <div className="flex-1 relative bg-gray-100 rounded-2xl flex items-center">
                 <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Nhập yêu cầu..."
-                className="w-full pl-3 pr-2 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                disabled={isLoading}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                    onPaste={handlePaste}
+                    placeholder="Nhập yêu cầu (hoặc dán ảnh Ctrl+V)..."
+                    className="w-full pl-4 pr-10 py-3 bg-transparent border-none focus:ring-0 text-sm text-gray-800 placeholder-gray-500"
+                    disabled={isLoading}
                 />
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                     <button
+                        onClick={handleVoiceInput}
+                        disabled={isLoading || !recognition}
+                        className={`p-1.5 rounded-full transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse' : 'text-gray-400 hover:text-gray-700'}`}
+                        title="Nói để nhập liệu"
+                    >
+                        <MicrophoneIcon className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
+            
             <button
               onClick={sendMessage}
-              disabled={isLoading || !input.trim()}
-              className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 flex-shrink-0 transition-colors"
+              disabled={isLoading || (!input.trim() && attachments.length === 0)}
+              className="p-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 transition-colors shadow-sm mb-0.5"
             >
               <SendIcon className="h-5 w-5" />
             </button>

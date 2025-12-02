@@ -6,6 +6,7 @@ import { CubeIcon } from './icons/CubeIcon';
 import { InputGroup } from './InputGroup';
 import { FormattedNumberInput } from './FormattedNumberInput';
 import { PlusCircleIcon } from './icons/PlusCircleIcon';
+import { removeVietnameseTones } from '../utils/formatters';
 
 interface ProductSelectionProps {
   products: Product[];
@@ -27,19 +28,38 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery) return products;
-    const searchTerm = searchQuery.toLowerCase();
-    return products.filter(product =>
-        product.code.toLowerCase().includes(searchTerm) ||
-        product.nameVI.toLowerCase().includes(searchTerm) ||
-        product.brand.toLowerCase().includes(searchTerm) ||
-        product.group.toLowerCase().includes(searchTerm)
-    );
+    const searchTerm = removeVietnameseTones(searchQuery.toLowerCase());
+    return products.filter(product => {
+        const code = removeVietnameseTones(product.code.toLowerCase());
+        const nameVI = removeVietnameseTones(product.nameVI.toLowerCase());
+        const brand = removeVietnameseTones(product.brand.toLowerCase());
+        const group = removeVietnameseTones(product.group.toLowerCase());
+        // Also search in English name if available
+        const nameEN = product.nameEN ? removeVietnameseTones(product.nameEN.toLowerCase()) : '';
+        
+        return code.includes(searchTerm) ||
+               nameVI.includes(searchTerm) ||
+               brand.includes(searchTerm) ||
+               group.includes(searchTerm) ||
+               nameEN.includes(searchTerm);
+    });
   }, [products, searchQuery]);
 
+  // Handle auto-selection logic safely
   useEffect(() => {
-    const currentSelectionExists = filteredProducts.some(p => p.code === selectedProductCode);
-    if (!currentSelectionExists && filteredProducts.length > 0) {
-      setSelectedProductCode(filteredProducts[0].code);
+    // If filtered list has items
+    if (filteredProducts.length > 0) {
+        const currentSelectionExists = filteredProducts.some(p => p.code === selectedProductCode);
+        // Only change selection if the current one is NO LONGER in the filtered list
+        // This prevents jumping if the user is typing but the current selection is still valid
+        if (!currentSelectionExists) {
+            setSelectedProductCode(filteredProducts[0].code);
+        }
+    } else {
+        // If no results, clear selection to avoid confusion (adding a hidden product)
+        if (selectedProductCode !== '') {
+            setSelectedProductCode('');
+        }
     }
   }, [filteredProducts, selectedProductCode, setSelectedProductCode]);
 
@@ -102,7 +122,7 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
             id="product-search"
             label="Tìm kiếm sản phẩm"
             type="text"
-            placeholder="Mã, tên, thương hiệu..."
+            placeholder="Gõ 'ca tra', 'thit trau', mã số..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1"
@@ -146,7 +166,7 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
         <div>
           <div className="flex justify-between items-center mb-1">
             <label htmlFor="product-select" className="block text-sm font-medium text-gray-700">
-              Chọn sản phẩm
+              Chọn sản phẩm ({filteredProducts.length})
             </label>
             <button
               onClick={onAddNewProduct}
@@ -161,12 +181,17 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
             value={selectedProductCode}
             onChange={(e) => setSelectedProductCode(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            disabled={filteredProducts.length === 0}
           >
-            {filteredProducts.map((product) => (
-              <option key={product.code} value={product.code}>
-                {`${product.brand} - ${product.group} - ${product.nameVI} (${product.code})`}
-              </option>
-            ))}
+            {filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
+                <option key={product.code} value={product.code}>
+                    {`${product.brand} - ${product.group} - ${product.nameVI} (${product.code})`}
+                </option>
+                ))
+            ) : (
+                <option value="">Không tìm thấy sản phẩm nào phù hợp</option>
+            )}
           </select>
         </div>
         
@@ -193,8 +218,8 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({
         <div className="pt-2 flex justify-end">
           <button
             onClick={handleAddClick}
-            className="w-full sm:w-auto flex justify-center items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            disabled={!selectedProductCode}
+            className="w-full sm:w-auto flex justify-center items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            disabled={!selectedProductCode || filteredProducts.length === 0}
           >
             <PlusIcon className="h-5 w-5 mr-2" />
             Thêm vào kế hoạch
